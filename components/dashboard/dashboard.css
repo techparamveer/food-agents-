@@ -3237,3 +3237,139 @@ a.estimate {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* ---------- Planner, orders and order builder ---------- */
+
+.plan-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem 0.875rem 0.875rem;
+}
+
+.plan-form__grid,
+.plan-form__mix {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+}
+
+.plan-form__mix {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.plan-form__mix legend {
+  grid-column: 1 / -1;
+  padding: 0;
+  margin-bottom: 0.25rem;
+}
+
+.plan-form .enq__field {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.plan-form .enq__input {
+  min-height: 2.25rem;
+  padding: 0.375rem 0.625rem;
+  color: var(--foreground);
+  font-size: 0.8125rem;
+}
+
+.plan-form .mini-role__actions {
+  justify-content: flex-end;
+}
+
+.plan-form__foot {
+  display: flex;
+}
+
+.plan-form__foot .tool__all {
+  flex: 1;
+}
+
+.plan-form__foot .tool__all + .tool__all {
+  margin-left: 0;
+}
+
+.mini-role .ag__cards {
+  margin: 0 0 0.5rem;
+}
+
+.meter {
+  position: relative;
+  height: 0.5rem;
+  margin-bottom: 0.875rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.meter__planned,
+.meter__spent {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  transition: width 0.3s var(--hero-ease);
+}
+
+.meter__planned {
+  background: var(--app-foreground);
+}
+
+.meter__spent {
+  background: var(--brand);
+}
+
+.swap-menu {
+  min-width: 16rem;
+}
+
+.swap-menu .filter__option {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.swap-menu .filter__option:hover {
+  background: var(--muted);
+}
+
+.builder__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.builder__lines {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.625rem;
+}
+
+.builder__total {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.upcoming__item.is-active {
+  box-shadow: inset 0 0 0 1.5px var(--brand), 0 1px 1px 0 rgb(0 0 0 / 0.04);
+}
+
+button.guide-banner {
+  width: 100%;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}

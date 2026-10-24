@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/dashboard/icon";
-import type { Estimate, OrderStatus, Restaurant } from "@/lib/types";
+import { ORDER_STATUSES, type Estimate, type OrderStatus, type Restaurant } from "@/lib/types";
 
 export function RestaurantTile({ restaurant, size = "md" }: { restaurant: Restaurant; size?: "sm" | "md" | "lg" }) {
   return (
@@ -31,14 +31,9 @@ export function EstimateValue({ estimate, format }: { estimate: Estimate; format
   );
 }
 
-const ORDER_STEPS: { id: OrderStatus; label: string }[] = [
-  { id: "draft", label: "Draft" },
-  { id: "approved", label: "Approved" },
-  { id: "ordered", label: "Ordered" },
-  { id: "delivered", label: "Delivered" },
-];
+const ORDER_STEPS = ORDER_STATUSES;
 
-/** Four-step track from draft to delivered; the current status is highlighted. */
+/** Four-step track from planned to arrived; the current status is highlighted. */
 export function StatusTrack({ status, muted = false }: { status: OrderStatus; muted?: boolean }) {
   const current = ORDER_STEPS.findIndex((s) => s.id === status);
   return (

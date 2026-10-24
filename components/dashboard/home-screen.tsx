@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Logo } from "@/components/logo";
 import { clock, countdown, useDashboard } from "@/components/dashboard/data";
+import { useLiveNow } from "@/components/dashboard/clock";
 import { Icon, type IconName } from "@/components/dashboard/icon";
 import { MealCheckView } from "@/components/dashboard/meal-check-view";
 import { OrderBuilderPane } from "@/components/dashboard/order-builder-pane";
@@ -12,6 +13,7 @@ import { RestaurantTile } from "@/components/dashboard/parts";
 import { PlannerPane, type PlannerApi, type PlannerContext } from "@/components/dashboard/planner-pane";
 import { RestaurantsView } from "@/components/dashboard/restaurants-view";
 import { SettingsDialog } from "@/components/settings/settings-dialog";
+import { isPlaced } from "@/lib/plan-sync";
 import type { Section, SettingsTab } from "@/lib/sections";
 
 const NAV: { id: Section; label: string; icon: IconName }[] = [
@@ -121,14 +123,15 @@ export function HomeScreen({
   const steps = [
     plan.slots.length > 0,
     plan.slots.every((p) => p.status === "approved"),
-    orders.some((o) => o.status === "ordered" || o.status === "delivered"),
+    orders.some((o) => isPlaced(o.status)),
   ];
   const stepsDone = steps.filter(Boolean).length;
   const checklistOpen = !checklistDismissed && stepsDone < steps.length;
 
-  const due = orders.filter((o) => o.status === "draft" || o.status === "approved").sort((a, b) => a.orderBy.localeCompare(b.orderBy));
+  const liveNow = useLiveNow(now);
+  const due = orders.filter((o) => !isPlaced(o.status)).sort((a, b) => a.orderBy.localeCompare(b.orderBy));
   const badges: Partial<Record<Section, { n: number; tone: "new" | "urgent" }>> = {
-    orders: { n: due.filter((o) => Date.parse(o.orderBy) - Date.parse(now) < 2 * 3_600_000).length, tone: "urgent" },
+    orders: { n: due.filter((o) => Date.parse(o.orderBy) - liveNow < 2 * 3_600_000).length, tone: "urgent" },
   };
 
   const first = due[0];
@@ -147,7 +150,7 @@ export function HomeScreen({
         : first && firstSlot
           ? {
               prompt: `Next deadline: order ${firstSlot.label} from ${restaurantById(first.restaurantId).name} by ${clock(first.orderBy)}, ${countdown(first.orderBy, now)}.`,
-              suggestions: [`Feed ${event.headcount} by 7pm under £1,300`, "Are we still under budget?"],
+              suggestions: ["Feed 150, 20 vegan, by 7pm under £1,300", "Plan the whole weekend"],
             }
           : {
               prompt: "Every meal is ordered. Want me to check the budget?",

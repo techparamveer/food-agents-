@@ -17,7 +17,7 @@ npm run dev                           # http://localhost:3000 and http://localho
 Keys are optional: without them every view falls back to the seeded OxHack data.
 `.env.example` lists the variables (`GOOGLE_PLACES_API_KEY`, `GEMINI_API_KEY`).
 
-Before pushing: `npm run lint && npm run build`.
+Before pushing: `npm run lint && npm test && npm run build`. Tests are plain `scripts/test-*.ts` files run with tsx.
 
 ## Layout
 
@@ -31,7 +31,13 @@ Before pushing: `npm run lint && npm run build`.
 | `components/dashboard/restaurants-view.tsx` | Restaurants ranked by estimated cost per head |
 | `components/dashboard/orders-view.tsx` | Orders: one bulk order per meal slot |
 | `components/dashboard/meal-check-view.tsx` | Meal check: name search (QR scanner to come) |
-| `components/dashboard/planner-pane.tsx` | Gemini food planner chat (scripted stub) |
+| `components/dashboard/planner-pane.tsx` | "Get it done" planner card and the Gemini food planner chat |
+| `components/dashboard/planner-state.tsx` | `PlannerProvider`: the latest plan, approve/swap, order status and quantities |
+| `lib/planner.ts` | Deterministic planner: meal slots, dietary split, restaurant picks, budget fitting |
+| `lib/countdown.ts` | Order-by = serving time − prep − delivery, and live countdown labels |
+| `lib/plan-sync.ts` | Writes a plan into the event: stable slot ids, placed orders left alone |
+| `lib/restaurant-search.ts` | Adapter over `findRestaurants` (seeded until the Restaurants work merges) |
+| `lib/server/food-chat.ts` | Chat turn: Gemini picks tools and narrates, the planner does the maths |
 | `components/dashboard/order-builder-pane.tsx` | Order builder: quantities by dietary need, link out |
 | `components/dashboard/data.tsx` | `DashboardProvider`, `useDashboard()` and formatting helpers |
 | `lib/types.ts` | Shared domain types |
