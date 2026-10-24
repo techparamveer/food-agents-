@@ -1,0 +1,465 @@
+/* Settings dialog over the dashboard: left nav of sections, one scrolling pane. */
+
+.setd {
+  --side-bg: #f5f6f4;
+  --line: #e6e8e4;
+  width: min(64rem, calc(100vw - 3rem));
+  max-width: none;
+  height: min(48rem, calc(100dvh - 3rem));
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  border: var(--hairline) solid var(--line);
+  border-radius: 1rem;
+  background: #fff;
+  color: var(--foreground);
+  box-shadow:
+    0 1px 2px rgb(16 24 16 / 0.06),
+    0 24px 64px -12px rgb(16 24 16 / 0.28);
+  overflow: hidden;
+}
+
+.setd::backdrop {
+  background: rgb(22 30 24 / 0.32);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.setd[open] {
+  animation: setd-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.setd[open]::backdrop {
+  animation: setd-fade 180ms ease-out;
+}
+
+@keyframes setd-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+
+@keyframes setd-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setd[open],
+  .setd[open]::backdrop {
+    animation: none;
+  }
+}
+
+.setd__frame {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  height: 100%;
+}
+
+.setd__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 1.25rem 0.75rem;
+  border-right: var(--hairline) solid var(--line);
+  background: var(--side-bg);
+}
+
+.setd__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.setd__group + .setd__group {
+  margin-top: 1.25rem;
+}
+
+.setd__heading {
+  margin: 0 0 0.375rem;
+  padding: 0 0.625rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.setd__tab {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.setd__tab .icon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--muted-foreground);
+}
+
+.setd__tab:hover {
+  background: color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+
+.setd__tab.is-active {
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  font-weight: 500;
+}
+
+.setd__tab.is-active .icon {
+  color: var(--foreground);
+}
+
+.setd__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.setd__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.25rem 1rem 2rem;
+  border-bottom: var(--hairline) solid var(--line);
+}
+
+.setd__head h2 {
+  margin: 0.25rem 0 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.setd__head p {
+  margin: 0.25rem 0 0;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+
+.setd__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.set__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem 2rem 0;
+}
+
+.set__form .ob-group {
+  padding-bottom: 1.5rem;
+  border-bottom: var(--hairline) solid var(--line);
+}
+
+.set__form .ob-group:last-of-type {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.set__save {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin: 0 -2rem;
+  padding: 0.875rem 2rem;
+  border-top: var(--hairline) solid var(--line);
+  background: color-mix(in oklab, #fff 92%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.set__status {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.set__status .icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+}
+
+.set__status.is-saved {
+  color: var(--brand-text);
+}
+
+.set__status.is-error {
+  color: #c2410c;
+}
+
+.set__form:not(:has(.set__save)) {
+  padding-bottom: 2rem;
+}
+
+.set__score {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.set__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.set__form .ob-review__row {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.set__form .ob-review__row + .ob-review__row {
+  border-top-color: var(--line);
+}
+
+.set__form .ob-review__text .role-row__title {
+  display: block;
+}
+
+.set__form .ob-group > .btn {
+  align-self: flex-start;
+}
+
+/* Account row at the foot of the sidebar: menu trigger plus a settings shortcut. */
+.side__account {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+button.side__me {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.side__me[aria-expanded="true"] {
+  background: color-mix(in oklab, var(--foreground) 7%, transparent);
+}
+
+.side__me-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side__gear {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+}
+
+.side__menu {
+  position: absolute;
+  bottom: calc(100% + 0.375rem);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  padding: 0.375rem;
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-xl);
+  background: #fff;
+  box-shadow: var(--shadow-xl);
+  animation: setd-fade 120ms ease-out;
+}
+
+.side__menu-email {
+  margin: 0;
+  padding: 0.375rem 0.625rem 0.5rem;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side__menu button {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.side__menu button:hover,
+.side__menu button:focus-visible {
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+  outline: none;
+}
+
+.side__menu .icon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--muted-foreground);
+}
+
+.side__menu-rule {
+  height: var(--hairline);
+  margin: 0.25rem 0.375rem;
+  background: var(--line);
+}
+
+.side__menu form {
+  margin: 0;
+}
+
+/* Icon-only rail: the sidebar scrolls, so the menu escapes it and opens to the side. */
+.shell[data-collapsed] .side__gear {
+  display: none;
+}
+
+.shell[data-collapsed] .side__menu {
+  position: fixed;
+  bottom: 0.625rem;
+  left: calc(var(--side-w) + 0.5rem);
+  right: auto;
+  width: 15rem;
+}
+
+@media (min-width: 56rem) and (max-width: 71.99rem) {
+  .shell .side__gear {
+    display: none;
+  }
+
+  .shell .side__menu {
+    position: fixed;
+    bottom: 0.625rem;
+    left: calc(var(--side-w) + 0.5rem);
+    right: auto;
+    width: 15rem;
+  }
+}
+
+.checklist__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.checklist__link:hover {
+  text-decoration: underline;
+}
+
+/* Mobile drawer is always full width, collapsed or not. */
+@media (max-width: 55.99rem) {
+  .shell .side__gear,
+  .shell[data-collapsed] .side__gear {
+    display: inline-flex;
+  }
+
+  .shell .side__menu,
+  .shell[data-collapsed] .side__menu {
+    position: absolute;
+    bottom: calc(100% + 0.375rem);
+    left: 0;
+    right: 0;
+    width: auto;
+  }
+}
+
+@media (max-width: 40rem) {
+  .setd {
+    width: 100vw;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .setd__frame {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .setd__nav {
+    flex-direction: row;
+    gap: 0.25rem;
+    padding: 0.625rem 1rem;
+    border-right: 0;
+    border-bottom: var(--hairline) solid var(--line);
+    overflow-x: auto;
+  }
+
+  .setd__heading {
+    display: none;
+  }
+
+  .setd__group {
+    flex-direction: row;
+    gap: 0.25rem;
+  }
+
+  .setd__group + .setd__group {
+    margin-top: 0;
+  }
+
+  .setd__tab {
+    width: auto;
+    flex-shrink: 0;
+  }
+
+  .setd__head {
+    padding: 1rem 0.75rem 0.875rem 1rem;
+  }
+
+  .set__form {
+    padding: 1.25rem 1rem 0;
+  }
+
+  .set__form:not(:has(.set__save)) {
+    padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
+  }
+
+  .set__save {
+    margin: 0 -1rem;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  }
+}

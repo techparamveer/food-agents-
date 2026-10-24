@@ -1,0 +1,292 @@
+import type {
+  Attendee,
+  Dietary,
+  Estimate,
+  Event,
+  EventData,
+  MealLog,
+  MealSlot,
+  Order,
+  OrderLine,
+  Plan,
+  Restaurant,
+} from "@/lib/types";
+
+/* The OxHack demo event. Restaurants are fictional stand-ins until Places results replace them,
+   and every number they carry is an estimate labelled "Seed data". */
+
+const SEED = { label: "Seed data" };
+const est = (value: number): Estimate => ({ value, source: SEED, isEstimate: true });
+
+/** The demo's clock: Saturday afternoon, lunch eaten, dinner still to order. */
+export const OXHACK_NOW = "2026-11-14T17:05:00Z";
+
+export const OXHACK_EVENT: Event = {
+  id: "oxhack-2026",
+  name: "OxHack 2026",
+  venue: {
+    name: "Oxford Town Hall",
+    address: "St Aldate's, Oxford",
+    postcode: "OX1 1BX",
+    lat: 51.7517,
+    lon: -1.2575,
+  },
+  startsAt: "2026-11-14T10:00:00Z",
+  endsAt: "2026-11-15T16:00:00Z",
+  headcount: 150,
+  budget: 5000,
+  dietaryMix: { veg: 0.15, vegan: 0.08, halal: 0.04, gf: 0.03 },
+};
+
+const slot = (id: string, label: string, kind: MealSlot["kind"], servesAt: string): MealSlot => ({
+  id,
+  eventId: OXHACK_EVENT.id,
+  label,
+  kind,
+  servesAt,
+  headcount: OXHACK_EVENT.headcount,
+  allowance: 1,
+});
+
+export const OXHACK_SLOTS: MealSlot[] = [
+  slot("sat-lunch", "Saturday lunch", "lunch", "2026-11-14T13:00:00Z"),
+  slot("sat-dinner", "Saturday dinner", "dinner", "2026-11-14T18:30:00Z"),
+  slot("sat-midnight", "Midnight snack", "snack", "2026-11-15T00:00:00Z"),
+  slot("sun-breakfast", "Sunday breakfast", "breakfast", "2026-11-15T08:30:00Z"),
+  slot("sun-lunch", "Sunday lunch", "lunch", "2026-11-15T12:30:00Z"),
+];
+
+const restaurant = (
+  r: Omit<Restaurant, "costPerHead" | "prepMinutes" | "travelMinutes" | "delivery"> & {
+    perHead: number;
+    prep: number;
+    travel: number;
+    fee: number;
+  },
+): Restaurant => {
+  const { perHead, prep, travel, fee, ...rest } = r;
+  return {
+    ...rest,
+    costPerHead: est(perHead),
+    prepMinutes: est(prep),
+    travelMinutes: est(travel),
+    delivery: [{ platform: "direct", url: rest.websiteUrl ?? "https://example.com", fee: est(fee), eta: est(prep + travel) }],
+  };
+};
+
+export const OXHACK_RESTAURANTS: Restaurant[] = [
+  restaurant({
+    id: "covered-market-pizza",
+    name: "Covered Market Pizza Co.",
+    cuisine: "Pizza",
+    address: "Market Street, Oxford",
+    lat: 51.7524,
+    lon: -1.2571,
+    distanceKm: 0.4,
+    rating: 4.5,
+    priceLevel: 2,
+    serves: ["veg", "vegan", "gf"],
+    color: "#c2410c",
+    monogram: "P",
+    perHead: 6,
+    prep: 25,
+    travel: 10,
+    fee: 15,
+  }),
+  restaurant({
+    id: "gloucester-green-falafel",
+    name: "Gloucester Green Falafel",
+    cuisine: "Middle Eastern",
+    address: "Gloucester Green, Oxford",
+    lat: 51.7543,
+    lon: -1.2627,
+    distanceKm: 0.7,
+    rating: 4.7,
+    priceLevel: 1,
+    serves: ["veg", "vegan", "halal"],
+    color: "#15803d",
+    monogram: "F",
+    perHead: 6.5,
+    prep: 20,
+    travel: 12,
+    fee: 10,
+  }),
+  restaurant({
+    id: "cowley-road-curry",
+    name: "Cowley Road Curry House",
+    cuisine: "Indian",
+    address: "Cowley Road, Oxford",
+    lat: 51.7466,
+    lon: -1.2396,
+    distanceKm: 1.6,
+    rating: 4.4,
+    priceLevel: 2,
+    serves: ["veg", "vegan", "halal", "gf"],
+    color: "#b45309",
+    monogram: "C",
+    perHead: 7.5,
+    prep: 25,
+    travel: 25,
+    fee: 20,
+  }),
+  restaurant({
+    id: "jericho-bagels",
+    name: "Jericho Bagel Bakery",
+    cuisine: "Bakery",
+    address: "Walton Street, Oxford",
+    lat: 51.7593,
+    lon: -1.2668,
+    distanceKm: 1.2,
+    rating: 4.6,
+    priceLevel: 1,
+    serves: ["veg", "vegan"],
+    color: "#a16207",
+    monogram: "B",
+    perHead: 4.5,
+    prep: 30,
+    travel: 15,
+    fee: 8,
+  }),
+  restaurant({
+    id: "high-street-noodles",
+    name: "High Street Noodle Bar",
+    cuisine: "Pan-Asian",
+    address: "High Street, Oxford",
+    lat: 51.7522,
+    lon: -1.2508,
+    distanceKm: 0.6,
+    rating: 4.3,
+    priceLevel: 2,
+    serves: ["veg", "vegan", "halal", "gf"],
+    color: "#be123c",
+    monogram: "N",
+    perHead: 8,
+    prep: 20,
+    travel: 12,
+    fee: 12,
+  }),
+];
+
+/* ---------- Attendees: 150 generated records with placeholder QR hashes ---------- */
+
+const FIRST = ["Amara", "Ben", "Chloe", "Dev", "Ella", "Femi", "Grace", "Hamza", "Isla", "Jun", "Kai", "Leah", "Musa", "Nina", "Omar"];
+const LAST = ["Ahmed", "Brown", "Chen", "Davies", "Evans", "Fraser", "Gupta", "Hughes", "Iqbal", "Jones"];
+
+/** FNV-1a, so placeholder hashes are stable across runs. Real hashes replace these later. */
+function placeholderHash(input: string) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return `ph_${(h >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+/** Spreads the event's dietary mix over the list: 23 veg, 12 vegan, 6 halal, 5 gluten-free. */
+function dietaryFor(i: number): Dietary | undefined {
+  const r = (i * 37) % 150;
+  if (r < 23) return "veg";
+  if (r < 35) return "vegan";
+  if (r < 41) return "halal";
+  if (r < 46) return "gf";
+  return undefined;
+}
+
+export const OXHACK_ATTENDEES: Attendee[] = Array.from({ length: OXHACK_EVENT.headcount }, (_, i) => {
+  const first = FIRST[i % FIRST.length];
+  const last = LAST[Math.floor(i / FIRST.length) % LAST.length];
+  const id = `att-${String(i + 1).padStart(3, "0")}`;
+  return {
+    id,
+    name: `${first} ${last}`,
+    discordHandle: `${first}${last}`.toLowerCase(),
+    avatarUrl: `https://cdn.discordapp.com/embed/avatars/${i % 6}.png`,
+    qrHash: placeholderHash(id),
+    dietary: dietaryFor(i),
+  };
+});
+
+/* ---------- Orders, meal logs and the plan ---------- */
+
+const restaurantById = (id: string) => OXHACK_RESTAURANTS.find((r) => r.id === id)!;
+const slotById = (id: string) => OXHACK_SLOTS.find((s) => s.id === id)!;
+
+function linesFor(headcount: number): OrderLine[] {
+  const { dietaryMix } = OXHACK_EVENT;
+  const special = (Object.keys(dietaryMix) as Dietary[]).map((d) => ({ dietary: d, quantity: Math.round(headcount * dietaryMix[d]) }));
+  const taken = special.reduce((n, l) => n + l.quantity, 0);
+  return [{ dietary: "standard", quantity: headcount - taken }, ...special];
+}
+
+/** Order deadline: when food is served, minus prep and delivery. */
+function orderBy(servesAt: string, r: Restaurant) {
+  const minutes = r.prepMinutes.value + r.travelMinutes.value;
+  return new Date(Date.parse(servesAt) - minutes * 60_000).toISOString().replace(".000Z", "Z");
+}
+
+function order(id: string, slotId: string, restaurantId: string, status: Order["status"]): Order {
+  const s = slotById(slotId);
+  const r = restaurantById(restaurantId);
+  const delivery = r.delivery[0];
+  return {
+    id,
+    slotId,
+    restaurantId,
+    platform: delivery.platform,
+    status,
+    lines: linesFor(s.headcount),
+    orderBy: orderBy(s.servesAt, r),
+    total: est(s.headcount * r.costPerHead.value + delivery.fee.value),
+  };
+}
+
+export const OXHACK_ORDERS: Order[] = [
+  order("ord-sat-lunch", "sat-lunch", "gloucester-green-falafel", "delivered"),
+  order("ord-sat-dinner", "sat-dinner", "high-street-noodles", "approved"),
+  order("ord-sat-midnight", "sat-midnight", "covered-market-pizza", "draft"),
+];
+
+/** 138 of 150 collected Saturday lunch. */
+export const OXHACK_MEAL_LOGS: MealLog[] = OXHACK_ATTENDEES.slice(0, 138).map((a, i) => ({
+  id: `log-${i + 1}`,
+  attendeeId: a.id,
+  slotId: "sat-lunch",
+  at: new Date(Date.parse("2026-11-14T13:00:00Z") + i * 9_000).toISOString(),
+  method: i % 10 === 0 ? "search" : "qr",
+}));
+
+const PICKS: Record<string, string> = {
+  "sat-lunch": "gloucester-green-falafel",
+  "sat-dinner": "high-street-noodles",
+  "sat-midnight": "covered-market-pizza",
+  "sun-breakfast": "jericho-bagels",
+  "sun-lunch": "cowley-road-curry",
+};
+
+export const OXHACK_PLAN: Plan = {
+  eventId: OXHACK_EVENT.id,
+  generatedAt: "2026-11-10T09:00:00Z",
+  source: "seed",
+  slots: OXHACK_SLOTS.map((s) => ({
+    slotId: s.id,
+    restaurantId: PICKS[s.id],
+    status: OXHACK_ORDERS.some((o) => o.slotId === s.id && o.status !== "draft") ? "approved" : "proposed",
+  })),
+  total: est(
+    OXHACK_SLOTS.reduce((sum, s) => {
+      const r = restaurantById(PICKS[s.id]);
+      return sum + s.headcount * r.costPerHead.value + r.delivery[0].fee.value;
+    }, 0),
+  ),
+};
+
+export const OXHACK: EventData = {
+  now: OXHACK_NOW,
+  event: OXHACK_EVENT,
+  slots: OXHACK_SLOTS,
+  restaurants: OXHACK_RESTAURANTS,
+  orders: OXHACK_ORDERS,
+  attendees: OXHACK_ATTENDEES,
+  mealLogs: OXHACK_MEAL_LOGS,
+  plan: OXHACK_PLAN,
+};

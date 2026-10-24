@@ -1,0 +1,1044 @@
+/* Landing page sections below the hero. Same tokens as the hero and the app:
+   hairline cards, soft shadows, the pale app green and brand-green accents. */
+
+/* ---------- Section scaffolding ---------- */
+
+.lp-section {
+  padding-block: 5rem;
+}
+
+.lp-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  max-width: 40rem;
+  margin: 0 auto 3.5rem;
+  padding-inline: var(--site-x);
+  text-align: center;
+}
+
+.lp-head--left {
+  align-items: flex-start;
+  margin: 0;
+  padding-inline: 0;
+  text-align: left;
+}
+
+.lp-kicker {
+  color: var(--brand-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lp-title {
+  margin: 0;
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.lp-lead {
+  max-width: 34rem;
+  color: var(--muted-foreground);
+  font-size: 1rem;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+@media (min-width: 40rem) {
+  .lp-section {
+    padding-block: 7rem;
+  }
+
+  .lp-head {
+    margin-bottom: 4.5rem;
+  }
+
+  .lp-title {
+    font-size: 2.5rem;
+  }
+
+  .lp-lead {
+    font-size: 1.125rem;
+  }
+}
+
+/* Sections settle in as they scroll into view, like the hero's blur-in. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .lp-reveal {
+      animation: lp-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 5% entry 45%;
+    }
+  }
+}
+
+@keyframes lp-reveal {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(1.5rem);
+  }
+}
+
+.tag--brand {
+  background: color-mix(in oklab, var(--brand) 16%, var(--card));
+  color: var(--brand-text);
+}
+
+/* ---------- How it works ---------- */
+
+.how {
+  display: flex;
+  flex-direction: column;
+  gap: 4.5rem;
+  padding-inline: var(--site-x);
+}
+
+.how__row {
+  display: grid;
+  gap: 2rem;
+  align-items: center;
+}
+
+.how__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  max-width: 28rem;
+}
+
+.how__kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: var(--brand-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.how__num {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--brand) 16%, var(--card));
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.how__title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.how__body {
+  color: var(--muted-foreground);
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.how__points {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  font-size: 0.9375rem;
+}
+
+.how__points li {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+/* The pale app green with a faint dot screen, a nod to the hero's halftone. */
+.how__art {
+  position: relative;
+  container-type: inline-size;
+  display: grid;
+  place-items: center;
+  min-height: 22rem;
+  padding: 2.5rem 1.25rem;
+  overflow: hidden;
+  border: var(--hairline) solid var(--border);
+  border-radius: calc(var(--radius-xl) * 1.5);
+  background:
+    radial-gradient(circle, color-mix(in oklab, var(--brand) 22%, transparent) 0.75px, transparent 1.25px) 0 0 / 14px 14px,
+    var(--app-background);
+}
+
+.how__art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, transparent 35%, var(--app-background) 85%);
+  pointer-events: none;
+}
+
+.art {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 30rem;
+}
+
+@media (min-width: 56rem) {
+  .how {
+    gap: 7rem;
+  }
+
+  .how__row {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 4.5rem;
+  }
+
+  .how__row:nth-child(even) {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+
+  .how__row:nth-child(even) .how__copy {
+    order: 2;
+  }
+
+  .how__art {
+    min-height: 27rem;
+    padding: 3rem 2.5rem;
+  }
+}
+
+/* ---------- Product illustrations ---------- */
+
+.mock {
+  border-radius: var(--radius-xl);
+  background: var(--card);
+  box-shadow: var(--shadow-sm), 0 12px 32px -12px rgb(13 20 15 / 0.12);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.mock .icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.mock-muted {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.mock-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  height: 2rem;
+  padding: 0 0.875rem;
+  border-radius: var(--radius-md);
+  background: var(--muted);
+  font-weight: 500;
+}
+
+.mock-btn--primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.mock-logo {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  background: var(--card);
+  box-shadow: inset 0 0 0 var(--hairline) var(--border);
+}
+
+.mock-logo img {
+  width: 70%;
+}
+
+.mock-logo--sm {
+  width: 2rem;
+  height: 2rem;
+}
+
+.mock-logo--mono {
+  background: #1d2733;
+  box-shadow: none;
+  color: #fff;
+  font-weight: 600;
+}
+
+.mock-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 1.375rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.mock-pill .icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.mock-pill--urgent {
+  background: #fdecea;
+  color: #b42318;
+}
+
+.mock-say {
+  display: flex;
+  gap: 0.625rem;
+  align-items: flex-start;
+}
+
+.mock-say p {
+  padding-top: 0.125rem;
+  font-size: 0.875rem;
+}
+
+.mock-say__avatar {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: var(--app-background);
+}
+
+.mock-say__avatar .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Step 1: onboarding */
+
+.art--tell {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.mock-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.5rem;
+}
+
+.mock-steps__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4375rem 0.5rem;
+  border-radius: var(--radius-md);
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.mock-steps__item[data-state="active"] {
+  background: var(--app-background);
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.mock-steps__icon {
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.mock-steps__item[data-state="done"] .mock-steps__icon {
+  background: color-mix(in oklab, var(--brand) 20%, var(--card));
+  color: var(--brand-text);
+}
+
+.mock-steps .icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.mock-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding: 1rem;
+}
+
+.mock-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.mock-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3125rem 0.625rem;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--border);
+  font-size: 0.75rem;
+}
+
+.mock-chip[data-on] {
+  background: color-mix(in oklab, var(--brand) 14%, var(--card));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--brand) 45%, transparent);
+  color: var(--brand-text);
+  font-weight: 500;
+}
+
+.mock-chip .icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.mock-ask__foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@container (max-width: 26rem) {
+  .art--tell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mock-steps {
+    display: none;
+  }
+
+  .mock-ask {
+    margin-top: 0;
+  }
+}
+
+/* Step 2: a matched role */
+
+.art--match {
+  max-width: 23rem;
+}
+
+.mock-role {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.125rem;
+}
+
+.mock-role__top {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.mock-role__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.mock-role__facts {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.mock-role__salary {
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.mock-role__right {
+  text-align: right;
+  font-weight: 500;
+}
+
+.mock-why {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--app-background);
+  color: color-mix(in oklab, var(--foreground) 72%, transparent);
+}
+
+.mock-why__head {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.mock-role__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.mock-count {
+  position: absolute;
+  top: -0.875rem;
+  right: -0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.mock-count__dot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 999px;
+  background: var(--brand);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 25%, transparent);
+}
+
+/* Step 3: the tracker */
+
+.art--track {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 27rem;
+}
+
+.mock-task {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: 0.75rem;
+  width: 100%;
+  padding: 1rem;
+}
+
+.mock-task--quiet {
+  width: 92%;
+  opacity: 0.7;
+}
+
+.mock-task__when {
+  display: flex;
+  flex-direction: column;
+  padding-top: 0.25rem;
+  text-align: right;
+}
+
+.mock-task__when strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.mock-task__when span {
+  color: var(--muted-foreground);
+  font-size: 0.6875rem;
+}
+
+.mock-task__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.mock-task__head {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+  margin-bottom: 0.375rem;
+}
+
+.mock-task__head > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.mock-task__role {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mock-task__title {
+  font-weight: 500;
+}
+
+.mock-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: var(--hairline) solid var(--border);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.mock-progress__bar {
+  display: flex;
+  gap: 0.1875rem;
+}
+
+.mock-progress__bar i {
+  width: 1rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.mock-progress__bar i:nth-child(-n + 2) {
+  background: var(--brand);
+}
+
+@container (max-width: 25rem) {
+  .mock-task .mock-pill {
+    display: none;
+  }
+}
+
+/* Step 4: practice */
+
+.art--prep {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 10.5rem;
+  gap: 0.75rem;
+  align-items: end;
+  max-width: 32rem;
+}
+
+.mock-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 1rem;
+}
+
+.mock-me {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-xs) var(--radius-xl);
+  background: var(--muted);
+}
+
+.mock-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.mock-feedback__row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.mock-feedback__tag {
+  flex-shrink: 0;
+  padding: 0 0.4375rem;
+  border-radius: 999px;
+  background: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+.mock-feedback__tag--good {
+  background: color-mix(in oklab, var(--brand) 18%, var(--card));
+  color: var(--brand-text);
+}
+
+.mock-stages {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1.5rem;
+  padding: 0.375rem;
+}
+
+.mock-stages__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 0.5rem;
+  align-items: center;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.mock-stages__item + .mock-stages__item {
+  border-top: var(--hairline) solid var(--border);
+}
+
+.mock-stages__item .icon {
+  grid-row: 1 / 3;
+  color: var(--muted-foreground);
+}
+
+.mock-stages__item .mock-muted {
+  grid-column: 2;
+  font-size: 0.6875rem;
+  font-weight: 400;
+}
+
+@container (max-width: 28rem) {
+  .art--prep {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mock-stages {
+    display: none;
+  }
+}
+
+/* ---------- Feature grid ---------- */
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  padding-inline: var(--site-x);
+}
+
+.grid__card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2rem;
+  min-height: 15rem;
+  padding: 1.5rem;
+  border-radius: calc(var(--radius-xl) * 1.5);
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+}
+
+.grid__head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.grid__icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-bottom: 0.5rem;
+  border-radius: var(--radius-md);
+  background: var(--app-background);
+  color: var(--brand-text);
+}
+
+.grid__title {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.grid__body {
+  max-width: 30rem;
+  color: var(--muted-foreground);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.grid__ask {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  font-size: 0.875rem;
+}
+
+.grid__q {
+  align-self: flex-end;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-xs) var(--radius-xl);
+  background: var(--muted);
+}
+
+.grid__input {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.375rem 0.375rem 0.375rem 0.875rem;
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+  color: var(--muted-foreground);
+}
+
+.grid__input span:first-of-type {
+  flex: 1;
+}
+
+.grid__call {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.grid__call .icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.grid__note {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem;
+  border-radius: var(--radius-xl);
+  background: var(--card);
+  box-shadow: var(--shadow-sm), 0 12px 28px -14px rgb(13 20 15 / 0.18);
+}
+
+.grid__note-icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-md);
+  background: var(--app-background);
+}
+
+.grid__note-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.grid__note-body {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.grid__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.grid__link {
+  align-self: flex-start;
+}
+
+@media (min-width: 48rem) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .grid__card--wide {
+    grid-column: span 2;
+  }
+
+  .grid__card--wide .grid__ask {
+    max-width: 26rem;
+    align-self: flex-end;
+    width: 100%;
+  }
+}
+
+/* ---------- FAQ ---------- */
+
+.faq {
+  display: grid;
+  gap: 2rem;
+  padding-inline: var(--site-x);
+}
+
+.faq__list {
+  border-top: var(--hairline) solid var(--border);
+}
+
+.faq__item {
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+.faq__item summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-block: 1.25rem;
+  font-size: 1rem;
+  font-weight: 500;
+  list-style: none;
+  cursor: pointer;
+}
+
+.faq__item summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq__chev {
+  color: var(--muted-foreground);
+  transition: transform 0.25s var(--hero-ease);
+}
+
+.faq__item[open] .faq__chev {
+  transform: rotate(180deg);
+}
+
+.faq__item p {
+  max-width: 40rem;
+  padding-bottom: 1.25rem;
+  color: var(--muted-foreground);
+  line-height: 1.65;
+}
+
+.faq__item p .link-brand {
+  display: inline;
+  font-size: inherit;
+}
+
+@media (min-width: 56rem) {
+  .faq {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+    gap: 4rem;
+  }
+
+  .faq .lp-head {
+    position: sticky;
+    top: 6rem;
+    align-self: start;
+  }
+}
+
+/* ---------- Closing call to action ---------- */
+
+.lp-cta {
+  padding-bottom: 5rem;
+}
+
+.lp-cta__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-inline: var(--site-x);
+  padding: 4rem 1.5rem;
+  overflow: hidden;
+  border: var(--hairline) solid var(--border);
+  border-radius: calc(var(--radius-xl) * 2);
+  background:
+    radial-gradient(ellipse 60% 70% at 50% 110%, color-mix(in oklab, var(--brand) 28%, transparent), transparent 70%),
+    radial-gradient(circle, color-mix(in oklab, var(--brand) 24%, transparent) 0.75px, transparent 1.25px) 0 0 / 14px 14px,
+    var(--app-background);
+  text-align: center;
+}
+
+.lp-cta__title {
+  max-width: 34rem;
+  margin: 0;
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.lp-cta__sub {
+  max-width: 30rem;
+  color: var(--muted-foreground);
+  line-height: 1.6;
+}
+
+.lp-cta__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+@media (min-width: 40rem) {
+  .lp-cta {
+    padding-bottom: 7rem;
+  }
+
+  .lp-cta__card {
+    padding: 5.5rem 2rem;
+  }
+
+  .lp-cta__title {
+    font-size: 2.75rem;
+  }
+
+  .lp-cta__actions {
+    flex-direction: row;
+    justify-content: center;
+    width: auto;
+  }
+}
+
+/* ---------- Footer ---------- */
+
+.site-footer {
+  border-top: var(--hairline) solid var(--border);
+}
+
+.site-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem 2rem;
+  padding: 2.5rem var(--site-x);
+}
+
+.site-footer__brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.site-footer__brand p,
+.site-footer__legal {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+
+.site-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.75rem;
+}
+
+.site-footer__legal {
+  flex-basis: 100%;
+}
