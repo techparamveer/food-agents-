@@ -146,7 +146,7 @@ export function HomeScreen({
           }
         : first && firstSlot
           ? {
-              prompt: `Next deadline: order ${firstSlot.label.toLowerCase()} from ${restaurantById(first.restaurantId).name} by ${clock(first.orderBy)}, ${countdown(first.orderBy, now)}.`,
+              prompt: `Next deadline: order ${firstSlot.label} from ${restaurantById(first.restaurantId).name} by ${clock(first.orderBy)}, ${countdown(first.orderBy, now)}.`,
               suggestions: [`Feed ${event.headcount} by 7pm under £1,300`, "Are we still under budget?"],
             }
           : {

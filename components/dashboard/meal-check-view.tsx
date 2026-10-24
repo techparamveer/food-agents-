@@ -38,7 +38,7 @@ export function MealCheckView() {
     setResult({
       attendee,
       ok,
-      note: ok ? `Enjoy ${slot.label.toLowerCase()}.` : `Already collected ${slot.label.toLowerCase()}.`,
+      note: ok ? `Enjoy ${slot.label}.` : `Already collected ${slot.label}.`,
     });
     if (!ok) return;
     update((data) => ({

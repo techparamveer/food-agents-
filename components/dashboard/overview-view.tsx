@@ -57,7 +57,7 @@ export function OverviewView({ onOpenOrder, onAsk }: { onOpenOrder: (orderId: st
                 <div className="card__foot">
                   {orderForSlot(next.id) ? <StatusTrack status={orderForSlot(next.id)!.status} /> : <span className="card__meta">No order yet</span>}
                   <div className="card__actions">
-                    <button type="button" className="btn btn--ghost" onClick={() => onAsk(`Is ${nextRestaurant.name} still the best pick for ${next.label.toLowerCase()}?`)}>
+                    <button type="button" className="btn btn--ghost" onClick={() => onAsk(`Is ${nextRestaurant.name} still the best pick for ${next.label}?`)}>
                       <Icon name="pizza" className="icon--brand" />
                       Ask the planner
                     </button>
@@ -86,7 +86,7 @@ export function OverviewView({ onOpenOrder, onAsk }: { onOpenOrder: (orderId: st
                       <RestaurantTile restaurant={restaurant} />
                       <span className="upcoming__text">
                         <span className="upcoming__title">
-                          Order by {clock(order.orderBy)} for {clock(slot.servesAt)} {slot.label.toLowerCase()}
+                          Order by {clock(order.orderBy)} for {clock(slot.servesAt)} {slot.kind}
                         </span>
                         <span className="upcoming__meta">
                           {restaurant.name} · {countdown(order.orderBy, now)}

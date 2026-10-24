@@ -106,14 +106,14 @@ export function OrdersView({ onOpenOrder, onAsk }: { onOpenOrder: (orderId: stri
                             </p>
                             <p className="card__detail">
                               {order
-                                ? `Order ${countdown(order.orderBy, now)} for ${clock(slot.servesAt)} ${slot.label.toLowerCase()}.`
+                                ? `Order ${countdown(order.orderBy, now)} for ${clock(slot.servesAt)} ${slot.kind}.`
                                 : "The planner has a restaurant in mind. Build the order when you're ready."}
                             </p>
                           </div>
                           <div className="card__foot">
                             {order ? <StatusTrack status={order.status} /> : <span className="card__meta">Not started</span>}
                             <div className="card__actions">
-                              <button type="button" className="btn btn--ghost" onClick={() => onAsk(`Swap the restaurant for ${slot.label.toLowerCase()}?`)}>
+                              <button type="button" className="btn btn--ghost" onClick={() => onAsk(`Swap the restaurant for ${slot.label}?`)}>
                                 <Icon name="pizza" className="icon--brand" />
                                 Swap
                               </button>
