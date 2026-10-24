@@ -14,7 +14,7 @@ const RATIO: Record<Shape, string> = {
   square: "1 / 1",
 };
 
-const TINTS = ["#a9d9b0", "#a9d9b0", "#bcd8b4", "#e2dccd"];
+const TINTS = ["#fcd28a", "#fcd28a", "#fbc690", "#ecdfc9"];
 
 type LayerConfig = {
   seed: number;
