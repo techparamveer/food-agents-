@@ -6,6 +6,7 @@ import { Logo } from "@/components/logo";
 
 const NAV_ITEMS = [
   { href: "/#how-it-works", label: "How it works" },
+  { href: "/#features", label: "Features" },
   { href: "/#faq", label: "FAQ" },
   { href: "/demo", label: "Demo" },
 ] as const;
@@ -39,7 +40,7 @@ export function SiteHeader() {
                 Login
               </Link>
               <Link className="btn btn--primary" href="/demo">
-                Try the demo
+                Try it
               </Link>
               <button
                 className="btn btn--icon site-header__menu"
