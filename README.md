@@ -17,7 +17,11 @@ npm run dev                           # http://localhost:3000 and http://localho
 Keys are optional: without them every view falls back to the seeded OxHack data.
 `.env.example` lists the variables (`GOOGLE_PLACES_API_KEY`, `GEMINI_API_KEY`).
 
-Before pushing: `npm run lint && npm run build`.
+Before pushing: `npm run lint && npm test && npm run build`.
+
+To test the meal check camera on a phone, run `npm run dev:https` and open the Network URL
+(browsers only allow the camera over HTTPS or on localhost). Print `/demo/qr-sheet` or open it on a
+second screen to scan real codes.
 
 ## Layout
 
@@ -30,7 +34,13 @@ Before pushing: `npm run lint && npm run build`.
 | `components/dashboard/overview-view.tsx` | Overview: next meal, order deadlines, budget |
 | `components/dashboard/restaurants-view.tsx` | Restaurants ranked by estimated cost per head |
 | `components/dashboard/orders-view.tsx` | Orders: one bulk order per meal slot |
-| `components/dashboard/meal-check-view.tsx` | Meal check: name search (QR scanner to come) |
+| `components/dashboard/meal-check-view.tsx` | Meal check: QR scanner, name search, ✅ / ⛔ card, serve + undo, attendee counts, per-slot rules |
+| `components/dashboard/qr-scanner.tsx` | Camera scanner (HTTPS or localhost) with a scan-a-photo fallback |
+| `app/demo/qr-sheet/page.tsx` | Printable demo QR codes, one per attendee |
+| `lib/qr.ts` | **The only place that maps QR text → attendee.** Hash format and how to swap in real hashes |
+| `lib/qr-detector.ts` | Native `BarcodeDetector`, else the `barcode-detector` WASM ponyfill (served from `public/vendor`) |
+| `lib/allowance.ts` | Meal allowance rules per slot (servings, seconds after N minutes, table window) |
+| `lib/seed/attendees.ts` | 150 seeded attendees with mock Discord handles and generated initials avatars |
 | `components/dashboard/planner-pane.tsx` | Gemini food planner chat (scripted stub) |
 | `components/dashboard/order-builder-pane.tsx` | Order builder: quantities by dietary need, link out |
 | `components/dashboard/data.tsx` | `DashboardProvider`, `useDashboard()` and formatting helpers |
