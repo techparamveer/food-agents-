@@ -45,3 +45,8 @@ next-env.d.ts
 .env*.local
 .env
 !.env.example
+
+# real keys live at ~/.config/comeda/env and are copied to .env.local
+
+# local screenshots
+/.screenshots/
