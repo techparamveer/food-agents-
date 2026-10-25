@@ -6,8 +6,9 @@ import { Icon } from "@/components/dashboard/icon";
 import { EstimateValue, RestaurantTile } from "@/components/dashboard/parts";
 import { usePlanner } from "@/components/dashboard/planner-state";
 import { iso, londonClock, londonDay, londonInstant } from "@/lib/london-time";
-import { budgetSummary, type PlannerForm } from "@/lib/plan-sync";
+import { budgetSummary, mergeRestaurants, type PlannerForm } from "@/lib/plan-sync";
 import type { MealPlan, SlotPlan } from "@/lib/planner";
+import type { SearchInfo } from "@/lib/restaurant-search";
 import { DIETARY, type Dietary, type OrderLine, type Restaurant } from "@/lib/types";
 
 /* Chat pane → the Comeda food planner. "Get it done" runs the deterministic planner on the
@@ -35,6 +36,8 @@ type Turn = {
   plan?: MealPlan;
   restaurants?: Restaurant[];
   model?: string;
+  /** The server's signature over `text`; history turns without one are ignored by the server. */
+  sig?: string;
   pending?: boolean;
   error?: string;
 };
@@ -88,7 +91,8 @@ export function PlannerPane({
   const planner = usePlanner();
   const beat = useBeats(BEATS, autoplay, (next) => {
     scripted.current?.();
-    if (next === FOUND && !planner.mealPlan) planner.run(planner.form);
+    // The tour plans the seeded event offline: landing-page visitors never trigger live searches.
+    if (next === FOUND && !planner.mealPlan) void planner.run(planner.form, { live: false });
     if (next === TYPE) scripted.current = stream(question, (text) => setDraft(text));
     if (next === SEND) {
       setDraft("");
@@ -116,17 +120,23 @@ export function PlannerPane({
     const typed = text.trim().slice(0, MAX_MESSAGE);
     if (!typed || busy) return;
     const key = `t${Date.now()}`;
-    const history = turns.filter((t) => t.text && !t.pending).map((t) => ({ role: t.role, text: t.text }));
+    const history = turns.filter((t) => t.text && !t.pending && !t.error).map((t) => ({ role: t.role, text: t.text, sig: t.sig }));
     setDraft("");
     setBusy(true);
     setTurns((all) => [...all, { key: `${key}u`, role: "user", text: typed }, { key, role: "assistant", text: "", pending: true }]);
+    // The server's own words when it refuses (rate limit); anything else gets the generic line.
+    let refusal = "";
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: typed, history, state: budgetSummary(data) }),
       });
-      if (!res.ok || !res.body) throw new Error(`Chat failed: ${res.status}`);
+      if (!res.ok || !res.body) {
+        const reason = await res.json().then((b: { error?: unknown }) => b.error, () => undefined);
+        if (res.status === 429 && typeof reason === "string") refusal = reason;
+        throw new Error(`Chat failed: ${res.status}`);
+      }
       const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
       let buffer = "";
       for (;;) {
@@ -139,16 +149,21 @@ export function PlannerPane({
           if (!line.trim()) continue;
           const event = JSON.parse(line);
           if (event.type === "tool") update(key, (t) => ({ ...t, tool: event.label }));
-          else if (event.type === "plan") update(key, (t) => ({ ...t, plan: event.plan }));
-          else if (event.type === "restaurants") update(key, (t) => ({ ...t, restaurants: event.restaurants }));
-          else if (event.type === "delta") update(key, (t) => ({ ...t, text: t.text + event.text }));
-          else if (event.type === "done") update(key, (t) => ({ ...t, pending: false, model: event.model }));
+          else if (event.type === "plan") {
+            // Live restaurants aren't in the seeded event yet: add them so the cards can name them.
+            data.update((d) => mergeRestaurants(d, event.restaurants ?? []));
+            update(key, (t) => ({ ...t, plan: event.plan }));
+          } else if (event.type === "restaurants") {
+            data.update((d) => mergeRestaurants(d, event.restaurants));
+            update(key, (t) => ({ ...t, restaurants: event.restaurants }));
+          } else if (event.type === "delta") update(key, (t) => ({ ...t, text: t.text + event.text }));
+          else if (event.type === "done") update(key, (t) => ({ ...t, pending: false, model: event.model, sig: event.sig }));
           else if (event.type === "error") update(key, (t) => ({ ...t, pending: false, error: event.message }));
         }
       }
       update(key, (t) => ({ ...t, pending: false }));
     } catch {
-      update(key, (t) => ({ ...t, pending: false, error: "Comeda couldn't answer just now. Try again in a moment." }));
+      update(key, (t) => ({ ...t, pending: false, error: refusal || "Comeda couldn't answer just now. Try again in a moment." }));
     } finally {
       setBusy(false);
     }
@@ -279,12 +294,15 @@ function GetItDone({ progress: scripted, tour = false }: { progress?: number; to
 
   const timers = useRef<number[]>([]);
   useEffect(() => () => timers.current.forEach(window.clearTimeout), []);
-  const submit = (next: PlannerForm) => {
-    run(next);
+  const submit = async (next: PlannerForm) => {
     setEditing(false);
     setStep(0);
     timers.current.forEach(window.clearTimeout);
-    timers.current = [1, 2, 3, 4].map((n) => window.setTimeout(() => setStep(n < 4 ? n : undefined), n * STEP_MS));
+    timers.current = [1, 2, 3].map((n) => window.setTimeout(() => setStep(n), n * STEP_MS));
+    // The steps tick at their own pace; the card stays on the last one until the live search is back.
+    const minimum = new Promise((done) => (timers.current[3] = window.setTimeout(done, 4 * STEP_MS)));
+    await Promise.all([run(next), minimum]);
+    setStep(undefined);
   };
 
   const steps = PLAN_STEPS(form, mealPlan?.slots.length ?? slots.length);
@@ -315,7 +333,9 @@ function GetItDone({ progress: scripted, tour = false }: { progress?: number; to
           ))}
         </ol>
       )}
-      {open && !working && !tour && (editing || !mealPlan) && <PlanForm initial={form} onSubmit={submit} onCancel={mealPlan ? () => setEditing(false) : undefined} />}
+      {open && !working && !tour && (editing || !mealPlan) && (
+        <PlanForm initial={form} onSubmit={(next) => void submit(next)} onCancel={mealPlan ? () => setEditing(false) : undefined} />
+      )}
       {open && !working && !editing && mealPlan && <PlanResult plan={mealPlan} onEdit={() => setEditing(true)} />}
     </div>
   );
@@ -518,9 +538,13 @@ function PlanResult({ plan, onEdit }: { plan: MealPlan; onEdit: () => void }) {
               {n}
             </p>
           ))}
+          {plan.search && <SearchNote search={plan.search} />}
         </div>
       ) : (
-        <p className="tool__empty">{plan.notes[0]}</p>
+        <>
+          <p className="tool__empty">{plan.notes[0]}</p>
+          {plan.search && <SearchNote search={plan.search} />}
+        </>
       )}
       <div className="plan-form__foot">
         <button type="button" className="tool__all" onClick={onEdit}>
@@ -533,6 +557,18 @@ function PlanResult({ plan, onEdit }: { plan: MealPlan; onEdit: () => void }) {
         )}
       </div>
     </>
+  );
+}
+
+/** Where the plan's restaurants came from. Says plainly when it's seeded data rather than live. */
+function SearchNote({ search }: { search: SearchInfo }) {
+  return (
+    <p className="tool__empty">
+      {search.source === "fallback"
+        ? "Planned from seeded sample restaurants, not live data."
+        : `Planned from ${search.count} live Google Places restaurants${search.source === "cache" ? " (cached)" : ""}; ${search.grounded} of their costs are grounded in Google Search, the rest are labelled estimates.`}
+      {search.warnings.map((w) => ` ${w}`).join("")}
+    </p>
   );
 }
 
@@ -594,13 +630,14 @@ function ChatPlan({ plan }: { plan: MealPlan }) {
           disabled={used}
           onClick={() => {
             const { headcount, budget, startsAt, endsAt, dietaryMix } = plan.input;
-            run({ headcount, budget, startsAt, endsAt, dietaryMix });
+            void run({ headcount, budget, startsAt, endsAt, dietaryMix });
             setUsed(true);
           }}
         >
           {used ? "Plan updated" : "Use this plan"}
         </button>
       )}
+      {plan.search && <SearchNote search={plan.search} />}
     </>
   );
 }

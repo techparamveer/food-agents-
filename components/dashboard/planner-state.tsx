@@ -1,19 +1,32 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 import { useDashboard } from "@/components/dashboard/data";
-import { applyPlan, formFromEvent, plannerInput, type PlannerForm } from "@/lib/plan-sync";
+import { applyPlan, formFromEvent, mergeRestaurants, plannerInput, type PlannerForm } from "@/lib/plan-sync";
 import { approveSlot, costOrder, planMeals, swapRestaurant, type MealPlan } from "@/lib/planner";
+import { searchForSlots, type FindRestaurants } from "@/lib/restaurant-search";
+import type { FindRestaurantsResult } from "@/lib/restaurants/find-core";
 import type { DeliveryPlatform, OrderLine, OrderStatus } from "@/lib/types";
 
 /* "Get it done" state: the planner's latest proposal and the actions that write it into the event
-   (approve, swap, order status, order quantities). Everything stays in memory in the demo. */
+   (approve, swap, order status, order quantities). Everything stays in memory in the demo.
+   Plans use live restaurants from /api/restaurants (Places + Gemini, cached); if that fails the
+   planner falls back to the seeded restaurants and the plan says so (`plan.search`). */
+
+/** The browser's restaurant search: the public route, which caches and rate-limits upstream calls. */
+const fetchRestaurants: FindRestaurants = async (q) => {
+  const params = new URLSearchParams({ slot: q.slotTime, headcount: String(q.headcount), open: "0" });
+  const res = await fetch(`/api/restaurants?${params}`);
+  if (!res.ok) throw new Error(`Restaurant search failed: ${res.status}`);
+  return (await res.json()) as FindRestaurantsResult;
+};
 
 type Planner = {
   /** The last plan "Get it done" produced; null until it has run. */
   mealPlan: MealPlan | null;
   form: PlannerForm;
-  run: (form: PlannerForm) => MealPlan;
+  /** Plans the form. `live: false` skips the search and uses the event's restaurants (the landing page tour). */
+  run: (form: PlannerForm, options?: { live?: boolean }) => Promise<MealPlan>;
   approve: (slotId?: string) => void;
   swap: (slotId: string, restaurantId: string) => void;
   setStatus: (orderId: string, status: OrderStatus) => void;
@@ -37,14 +50,32 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
     [update, now],
   );
 
+  // Only the latest "Get it done" may write its plan, however the searches finish.
+  const latest = useRef(0);
   const run = useCallback(
-    (next: PlannerForm) => {
+    async (next: PlannerForm, { live = true }: { live?: boolean } = {}) => {
       setForm(next);
-      const plan = planMeals(plannerInput(data, next), restaurants);
-      commit(plan);
+      const ticket = ++latest.current;
+      if (!live) {
+        const plan = planMeals(plannerInput(data, next), restaurants);
+        commit(plan);
+        return plan;
+      }
+      const slots = plannerInput(data, next).slots ?? [];
+      const { restaurants: found, openAt, ...search } = await searchForSlots(
+        { venue: data.event.venue, headcount: next.headcount, dietaryMix: next.dietaryMix },
+        slots,
+        fetchRestaurants,
+      );
+      // Placed orders keep their own restaurants; everything else is planned from what the search found.
+      const plan: MealPlan = { ...planMeals(plannerInput(data, next, openAt), found), search };
+      if (ticket === latest.current) {
+        update((d) => mergeRestaurants(d, found));
+        commit(plan);
+      }
       return plan;
     },
-    [data, restaurants, commit],
+    [data, restaurants, commit, update],
   );
 
   /** The current plan, or a fresh one from the form when "Get it done" hasn't run yet. */

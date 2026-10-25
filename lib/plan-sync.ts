@@ -1,6 +1,6 @@
 import { londonDay } from "@/lib/london-time";
-import { proposeSlots, type MealPlan, type PlannerInput } from "@/lib/planner";
-import type { EventData, MealSlot, Order, OrderStatus } from "@/lib/types";
+import { proposeSlots, type FixedOrder, type MealPlan, type PlannerInput } from "@/lib/planner";
+import type { EventData, MealSlot, Order, OrderStatus, Restaurant } from "@/lib/types";
 
 /* Between the planner and the dashboard's event data. The planner works on plain inputs;
    these helpers keep slot ids stable (meal check logs point at them) and leave placed orders alone. */
@@ -17,21 +17,38 @@ export function formFromEvent(data: Pick<EventData, "event">): PlannerForm {
 }
 
 /** Proposed slots, reusing an existing slot's id, label and time when it's the same meal on the
-    same day. Slots with placed orders always stay, even outside new dates. */
+    same day. Slots with placed orders always stay, even outside new dates, and keep the headcount
+    they were ordered for. */
 export function reconcileSlots(proposed: MealSlot[], existing: MealSlot[], keep: (slot: MealSlot) => boolean = () => false): MealSlot[] {
   const used = new Set<string>();
   const out = proposed.map((p) => {
     const match = existing.find((e) => !used.has(e.id) && e.kind === p.kind && londonDay(e.servesAt) === londonDay(p.servesAt));
     if (!match) return p;
     used.add(match.id);
-    return { ...p, id: match.id, label: match.label, servesAt: match.servesAt, allowance: match.allowance };
+    return { ...p, id: match.id, label: match.label, servesAt: match.servesAt, allowance: match.allowance, headcount: keep(match) ? match.headcount : p.headcount };
   });
-  for (const e of existing) if (!used.has(e.id) && keep(e)) out.push({ ...e, headcount: proposed[0]?.headcount ?? e.headcount });
+  for (const e of existing) if (!used.has(e.id) && keep(e)) out.push(e);
   return out.sort((a, b) => a.servesAt.localeCompare(b.servesAt) || a.id.localeCompare(b.id));
 }
 
+/** A placed order as the planner sees it: its own restaurant, lines and real total. */
+export function fixedOrder(order: Order, restaurants: Pick<EventData, "restaurants">["restaurants"] = []): FixedOrder {
+  return {
+    restaurantId: order.restaurantId,
+    restaurantName: restaurants.find((r) => r.id === order.restaurantId)?.name,
+    total: order.total.value,
+    lines: order.lines,
+    orderBy: order.orderBy,
+    platform: order.platform,
+  };
+}
+
 /** Planner input for the form, on top of what's already been ordered. */
-export function plannerInput(data: Pick<EventData, "event" | "slots" | "orders">, form: PlannerForm): PlannerInput {
+export function plannerInput(
+  data: Pick<EventData, "event" | "slots" | "orders"> & Partial<Pick<EventData, "restaurants">>,
+  form: PlannerForm,
+  openAt?: PlannerInput["openAt"],
+): PlannerInput {
   const placed = data.orders.filter((o) => isPlaced(o.status));
   const proposed = proposeSlots({ eventId: data.event.id, ...form });
   const slots = reconcileSlots(proposed, data.slots, (s) => placed.some((o) => o.slotId === s.id));
@@ -39,7 +56,8 @@ export function plannerInput(data: Pick<EventData, "event" | "slots" | "orders">
     eventId: data.event.id,
     ...form,
     slots,
-    fixed: Object.fromEntries(placed.filter((o) => slots.some((s) => s.id === o.slotId)).map((o) => [o.slotId, o.restaurantId])),
+    fixed: Object.fromEntries(placed.filter((o) => slots.some((s) => s.id === o.slotId)).map((o) => [o.slotId, fixedOrder(o, data.restaurants)])),
+    ...(openAt ? { openAt } : {}),
   };
 }
 
@@ -63,12 +81,15 @@ export function applyPlan(data: EventData, plan: MealPlan, at: string, only?: st
       total: est(s.cost),
     };
   });
+  // A placed order is never dropped, even by a plan that somehow left its slot out.
+  const stray = data.orders.filter((o) => isPlaced(o.status) && !plan.slots.some((s) => s.slot.id === o.slotId));
+  const straySlots = data.slots.filter((s) => stray.some((o) => o.slotId === s.id));
   const { headcount, budget, startsAt, endsAt, dietaryMix } = plan.input;
   return {
     ...data,
     event: { ...data.event, headcount, budget, startsAt, endsAt, dietaryMix },
-    slots: plan.slots.map((s) => s.slot),
-    orders,
+    slots: [...plan.slots.map((s) => s.slot), ...straySlots].sort((a, b) => a.servesAt.localeCompare(b.servesAt) || a.id.localeCompare(b.id)),
+    orders: [...orders, ...stray],
     plan: {
       eventId: data.event.id,
       generatedAt: at,
@@ -77,6 +98,14 @@ export function applyPlan(data: EventData, plan: MealPlan, at: string, only?: st
       total: est(plan.total),
     },
   };
+}
+
+/** Adds searched restaurants to the event so every view can resolve them by id. Existing ones are refreshed, none dropped
+    (placed orders may point at restaurants a later search didn't return). */
+export function mergeRestaurants(data: EventData, found: Restaurant[]): EventData {
+  if (!found.length) return data;
+  const fresh = new Map(found.map((r) => [r.id, r]));
+  return { ...data, restaurants: [...data.restaurants.filter((r) => !fresh.has(r.id)), ...fresh.values()] };
 }
 
 /** Spent = placed orders; planned = everything in the plan. */

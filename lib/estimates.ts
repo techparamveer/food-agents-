@@ -51,7 +51,8 @@ async function estimateBatch(places: PlaceResult[], headcount: number, apiKey: s
     body: JSON.stringify({
       contents: [{ role: "user", parts: [{ text: buildEstimatePrompt(places, headcount) }] }],
       tools: [{ google_search: {} }],
-      generationConfig: { temperature: 0.2 },
+      // Low thinking: a lookup-and-format job. Default thinking took over 45 s per batch and billed ~5k extra tokens.
+      generationConfig: { temperature: 0.2, thinkingConfig: { thinkingLevel: "low" } },
     }),
     signal: signal ?? AbortSignal.timeout(45_000),
     cache: "no-store",

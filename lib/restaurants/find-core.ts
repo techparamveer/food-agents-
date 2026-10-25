@@ -63,6 +63,19 @@ export type NormalisedInput = {
 
 const DIETARY_IDS = DIETARY.map((d) => d.id);
 
+/** Biggest event the search prices for. Anything above is clamped, so a public caller can't fan out cache keys. */
+export const MAX_HEADCOUNT = 1000;
+
+/** People → a whole number in 1…MAX_HEADCOUNT. Junk becomes 1. */
+export const clampHeadcount = (n: unknown) => Math.min(MAX_HEADCOUNT, Math.max(1, Math.round(Number(n) || 1)));
+
+/** Estimates are cached per band, not per headcount: five bands cover 1–1,000 people. */
+const BANDS = [50, 100, 200, 500, MAX_HEADCOUNT];
+export const headcountBand = (n: number) => BANDS.find((b) => clampHeadcount(n) <= b) ?? MAX_HEADCOUNT;
+
+/** Cache key for one restaurant's estimates. Bump the version when the estimate shape or sourcing rules change. */
+export const estimatesKey = (placeId: string, headcount: number) => `estimates:v2:${placeId}:${headcountBand(headcount)}`;
+
 export function normaliseInput(input: FindRestaurantsInput): NormalisedInput {
   const slot = input.slotTime instanceof Date ? input.slotTime : new Date(input.slotTime);
   if (Number.isNaN(slot.getTime())) throw new Error(`Invalid slotTime: ${String(input.slotTime)}`);
@@ -70,7 +83,7 @@ export function normaliseInput(input: FindRestaurantsInput): NormalisedInput {
   return {
     venue: input.venue ?? DEFAULT_VENUE,
     slot,
-    headcount: Math.min(5000, Math.max(1, Math.round(Number(input.headcount) || 1))),
+    headcount: clampHeadcount(input.headcount),
     maxPerHead: input.maxPerHead !== undefined && Number.isFinite(max) && max > 0 ? max : undefined,
     dietary: (input.dietary ?? []).filter((d): d is Dietary => DIETARY_IDS.includes(d)),
     dietaryMix: input.dietaryMix,
