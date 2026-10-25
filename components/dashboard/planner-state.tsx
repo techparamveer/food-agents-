@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 import { useDashboard } from "@/components/dashboard/data";
-import { applyPlan, formFromEvent, mergeRestaurants, plannerInput, type PlannerForm } from "@/lib/plan-sync";
+import { addManualOrder, applyPlan, formFromEvent, mergeRestaurants, plannerInput, type ManualOrderInput, type PlannerForm } from "@/lib/plan-sync";
 import { approveSlot, costOrder, planMeals, swapRestaurant, type MealPlan } from "@/lib/planner";
 import { searchForSlots, type FindRestaurants } from "@/lib/restaurant-search";
 import type { FindRestaurantsResult } from "@/lib/restaurants/find-core";
@@ -49,6 +49,7 @@ type Planner = {
   run: (form: PlannerForm, options?: { live?: boolean }) => Promise<MealPlan>;
   approve: (slotId?: string) => void;
   swap: (slotId: string, restaurantId: string) => void;
+  addOrder: (input: ManualOrderInput) => string;
   setStatus: (orderId: string, status: OrderStatus) => void;
   setLines: (orderId: string, lines: OrderLine[]) => void;
   setPlatform: (orderId: string, platform: DeliveryPlatform) => void;
@@ -119,6 +120,15 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
     [base, mealPlan, restaurants, commit],
   );
 
+  const addOrder = useCallback(
+    (input: ManualOrderInput) => {
+      const key = globalThis.crypto.randomUUID();
+      update((d) => addManualOrder(d, input, key));
+      return `ord-manual-${key}`;
+    },
+    [update],
+  );
+
   /** Re-costs an order after its quantities or platform change. */
   const reprice = useCallback(
     (orderId: string, patch: { lines?: OrderLine[]; platform?: DeliveryPlatform }) =>
@@ -146,8 +156,8 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   const setPlatform = useCallback((orderId: string, platform: DeliveryPlatform) => reprice(orderId, { platform }), [reprice]);
 
   const value = useMemo<Planner>(
-    () => ({ mealPlan, form, run, approve, swap, setStatus, setLines, setPlatform }),
-    [mealPlan, form, run, approve, swap, setStatus, setLines, setPlatform],
+    () => ({ mealPlan, form, run, approve, swap, addOrder, setStatus, setLines, setPlatform }),
+    [mealPlan, form, run, approve, swap, addOrder, setStatus, setLines, setPlatform],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

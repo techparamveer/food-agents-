@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Countdown, useLiveNow } from "@/components/dashboard/clock";
 import { clock, dayKey, longDay, money, useDashboard } from "@/components/dashboard/data";
 import { FoodFeedback } from "@/components/dashboard/food-feedback";
@@ -9,9 +9,10 @@ import { EstimateValue, EtaBreakdown, RestaurantTile, StatusTrack } from "@/comp
 import { linesText, type Ask } from "@/components/dashboard/planner-pane";
 import { usePlanner } from "@/components/dashboard/planner-state";
 import { deadlineLine } from "@/lib/countdown";
+import { iso, londonClock, londonDay, londonInstant } from "@/lib/london-time";
 import { budgetSummary, isPlaced } from "@/lib/plan-sync";
 import { costSlot } from "@/lib/planner";
-import { ORDER_STATUSES, type MealSlot, type Order, type OrderStatus } from "@/lib/types";
+import { ORDER_STATUSES, type MealKind, type MealSlot, type Order, type OrderStatus } from "@/lib/types";
 
 /* Applications → Orders: one bulk order per meal slot, grouped by day, with a live deadline.
    Status is set by hand: Comeda never places or tracks orders itself. */
@@ -37,6 +38,7 @@ export function OrdersView({ onOpenOrder, onAsk }: { onOpenOrder: (orderId: stri
   const data = useDashboard();
   const { slots, orders, event, orderForSlot } = data;
   const [tab, setTab] = useState<Tab>("open");
+  const [adding, setAdding] = useState(false);
   const shown = slots.filter((s) => tabFor(orderForSlot(s.id)) === tab);
   const counts = Object.fromEntries(TABS.map((t) => [t.id, slots.filter((s) => tabFor(orderForSlot(s.id)) === t.id).length])) as Record<Tab, number>;
   const byDay = new Map<string, MealSlot[]>();
@@ -58,6 +60,10 @@ export function OrdersView({ onOpenOrder, onAsk }: { onOpenOrder: (orderId: stri
             </p>
           </div>
         </div>
+        <button type="button" className="btn btn--primary orders-add" aria-label="Add an order" onClick={() => setAdding(true)}>
+          <Icon name="plus" />
+          <span>Add order</span>
+        </button>
       </header>
 
       <div className="dash-toolbar">
@@ -113,7 +119,118 @@ export function OrdersView({ onOpenOrder, onAsk }: { onOpenOrder: (orderId: stri
           )}
         </div>
       </div>
+      <AddOrderDialog
+        open={adding}
+        onClose={() => setAdding(false)}
+        onAdded={(orderId) => {
+          setAdding(false);
+          setTab("open");
+          onOpenOrder(orderId);
+        }}
+      />
     </>
+  );
+}
+
+const toLocal = (at: string) => `${londonDay(at)}T${londonClock(at)}`;
+const fromLocal = (value: string) => {
+  const [day, time] = value.split("T");
+  const [hour, minute] = (time ?? "").split(":").map(Number);
+  return day && Number.isFinite(hour) && Number.isFinite(minute) ? iso(londonInstant(day, hour, minute)) : "";
+};
+
+function AddOrderDialog({ open, onClose, onAdded }: { open: boolean; onClose: () => void; onAdded: (orderId: string) => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const { now, event, slots, restaurants } = useDashboard();
+  const { addOrder } = usePlanner();
+  const firstUpcoming = slots.find((slot) => slot.servesAt > now)?.servesAt ?? event.endsAt;
+  const [label, setLabel] = useState("");
+  const [kind, setKind] = useState<MealKind>("lunch");
+  const [servesAt, setServesAt] = useState(() => toLocal(firstUpcoming));
+  const [headcount, setHeadcount] = useState(String(event.headcount));
+  const [restaurantId, setRestaurantId] = useState(restaurants[0]?.id ?? "");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const people = Math.round(Number(headcount));
+    const at = fromLocal(servesAt);
+    if (!label.trim()) return setError("Give this meal a name.");
+    if (!restaurantId) return setError("Choose a restaurant.");
+    if (!(people > 0)) return setError("Add at least one meal.");
+    if (!at) return setError("Choose when the food should be served.");
+    setError("");
+    onAdded(addOrder({ label: label.trim(), kind, servesAt: at, headcount: people, restaurantId }));
+  };
+
+  return (
+    <dialog
+      ref={ref}
+      className="order-dialog"
+      aria-labelledby="order-dialog-title"
+      onClose={onClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <form className="order-dialog__form" onSubmit={submit}>
+        <header className="order-dialog__head">
+          <div>
+            <h2 id="order-dialog-title">Add an order</h2>
+            <p>Add a meal yourself if it was not planned through Comeda.</p>
+          </div>
+          <button type="button" className="btn btn--icon" aria-label="Close" onClick={onClose}>
+            <Icon name="x" />
+          </button>
+        </header>
+        <div className="order-dialog__body">
+          <label className="enq__field">
+            Meal name
+            <input className="enq__input" value={label} placeholder="e.g. Friday team dinner" autoFocus onChange={(e) => setLabel(e.target.value)} />
+          </label>
+          <div className="order-dialog__grid">
+            <label className="enq__field">
+              Meal type
+              <select className="enq__input" value={kind} onChange={(e) => setKind(e.target.value as MealKind)}>
+                <option value="breakfast">Breakfast</option>
+                <option value="lunch">Lunch</option>
+                <option value="dinner">Dinner</option>
+                <option value="snack">Snack</option>
+              </select>
+            </label>
+            <label className="enq__field">
+              Meals
+              <input className="enq__input" type="number" min={1} inputMode="numeric" value={headcount} onChange={(e) => setHeadcount(e.target.value)} />
+            </label>
+          </div>
+          <label className="enq__field">
+            Serve at
+            <input className="enq__input" type="datetime-local" value={servesAt} onChange={(e) => setServesAt(e.target.value)} />
+          </label>
+          <label className="enq__field">
+            Restaurant
+            <select className="enq__input" value={restaurantId} onChange={(e) => setRestaurantId(e.target.value)}>
+              {restaurants.map((restaurant) => (
+                <option key={restaurant.id} value={restaurant.id}>{restaurant.name}</option>
+              ))}
+            </select>
+          </label>
+          <p className="order-dialog__note">Comeda will estimate the dietary split, total and order deadline. You can adjust quantities in the order builder.</p>
+          {error && <p className="enq__error" role="alert">{error}</p>}
+        </div>
+        <footer className="order-dialog__foot">
+          <button type="button" className="btn btn--outline" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn btn--primary"><Icon name="plus" />Add to To order</button>
+        </footer>
+      </form>
+    </dialog>
   );
 }
 

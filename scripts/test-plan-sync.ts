@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { applyPlan, budgetSummary, formFromEvent, plannerInput } from "@/lib/plan-sync";
+import { addManualOrder, applyPlan, budgetSummary, formFromEvent, plannerInput } from "@/lib/plan-sync";
 import { planMeals } from "@/lib/planner";
 import { OXHACK } from "@/lib/seed/oxhack";
 
@@ -50,5 +50,20 @@ assert.ok(shorter.slots!.some((s) => s.id === "sat-lunch"), "ordered lunch stays
 assert.deepEqual(shorter.slots!.map((s) => s.id), ["sat-lunch", "sat-dinner", "sat-midnight", "sun-breakfast", "sun-lunch"]);
 const oneDay = plannerInput({ ...OXHACK, orders: [] }, { ...form, endsAt: "2026-11-14T20:00:00Z" });
 assert.deepEqual(oneDay.slots!.map((s) => s.id), ["sat-lunch", "sat-dinner"]);
+
+const manual = addManualOrder(OXHACK, {
+  label: "Sponsor supper",
+  kind: "dinner",
+  servesAt: "2026-11-14T20:00:00Z",
+  headcount: 12,
+  restaurantId: "jericho-bagels",
+}, "test");
+const manualOrder = manual.orders.find((order) => order.id === "ord-manual-test")!;
+assert.equal(manual.slots.find((slot) => slot.id === manualOrder.slotId)!.label, "Sponsor supper");
+assert.equal(manualOrder.status, "planned", "manual orders start in To order");
+assert.equal(manualOrder.lines.reduce((sum, line) => sum + line.quantity, 0), 12);
+assert.equal(manualOrder.restaurantId, "jericho-bagels");
+assert.ok(manualOrder.total.value > 0);
+assert.equal(manual.plan.slots.at(-1)?.reason, "Added manually by the organiser.");
 
 console.log("test-plan-sync: ok");
