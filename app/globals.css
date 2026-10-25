@@ -599,16 +599,21 @@ canvas {
   }
 }
 
-.hero__card {
+/* Breaks out of the text column so the dashboard renders near its native size. */
+.site > .hero__card {
+  grid-column: 1 / -1;
+  justify-self: center;
   position: relative;
+  width: calc(100% - 2 * var(--site-x));
+  max-width: 90rem;
   height: 36rem;
-  margin-inline: var(--site-x);
   pointer-events: none;
 }
 
-@media (min-width: 72rem) {
-  .hero__card {
-    margin-inline: calc(var(--site-x) - var(--optical-inset));
+@media (min-width: 64rem) {
+  .site > .hero__card {
+    width: calc(100% - 4 * var(--site-x));
+    height: 48rem;
   }
 }
 

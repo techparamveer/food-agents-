@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   // instant-navigation checks in `next dev` were stalling the request, and
   // Strict Mode double-mounts the canvas (two full landscape paints).
   reactStrictMode: false,
+  // The floating "N" badge overlaps the dashboard's account row in demos.
+  devIndicators: false,
 };
 
 export default nextConfig;
