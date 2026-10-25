@@ -1,15 +1,15 @@
 /* Signed-in app: Jack & Jill-style shell (sidebar, agent chat, work panel), Buffer-style
-   organisation inside the panel, Dex-style role detail. Neutral greys, brand green accent. */
+   organisation inside the panel, Dex-style role detail. Neutral greys, brand amber accent. */
 
 .shell {
   --side-w: 15rem;
   --chat-w: minmax(22rem, 30rem);
-  --side-bg: #f5f6f4;
-  --chat-bg: #fafbf9;
-  --line: #e6e8e4;
-  --urgent: #c2410c;
-  --urgent-bg: #fff4ed;
-  --new: #1f8137;
+  --side-bg: #f7f4ef;
+  --chat-bg: #fcfaf7;
+  --line: #ebe6de;
+  --urgent: #b42318;
+  --urgent-bg: #fef3f2;
+  --new: var(--brand-text);
   display: grid;
   grid-template-columns: var(--side-w) var(--chat-w) minmax(0, 1fr);
   height: 100dvh;
@@ -249,7 +249,7 @@
   height: 2rem;
   flex-shrink: 0;
   border-radius: 999px;
-  background: linear-gradient(140deg, #8fd597, #3f9c4b);
+  background: linear-gradient(140deg, #fcd34d, #f97316);
   color: #fff;
   font-size: 0.75rem;
   font-weight: 600;
@@ -2757,7 +2757,7 @@
 }
 
 .appd::backdrop {
-  background: rgb(22 30 24 / 0.32);
+  background: rgb(30 24 16 / 0.32);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
@@ -3130,7 +3130,7 @@
   width: min(22rem, 100%);
   padding: 1rem 1rem 1.25rem;
   border-left: var(--hairline) solid var(--line);
-  background: #fafbf9;
+  background: #fcfaf7;
   overflow: auto;
 }
 
