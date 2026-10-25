@@ -203,7 +203,7 @@ function TrackArt() {
     <div className="art art--track">
       <Card className="mock-task">
         <div className="mock-task__when">
-          <strong>17:40</strong>
+          <strong>17:58</strong>
           <span>Order by</span>
         </div>
         <div className="mock-task__body">
@@ -218,7 +218,7 @@ function TrackArt() {
               Order soon
             </span>
           </div>
-          <p className="mock-task__title">Order by 17:40 for 18:30 dinner</p>
+          <p className="mock-task__title">Order by 17:58 for 18:30 dinner</p>
           <p className="mock-muted">104 standard, 23 veg, 12 vegan, 6 halal, 5 gluten-free.</p>
           <div className="mock-progress">
             <span className="mock-progress__bar">

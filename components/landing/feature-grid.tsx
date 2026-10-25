@@ -7,7 +7,7 @@ const MEALS = ["Breakfast", "Lunch", "Dinner", "Midnight snack"];
 
 export function FeatureGrid() {
   return (
-    <section className="lp-section" aria-labelledby="grid-title">
+    <section className="lp-section" id="features" aria-labelledby="grid-title">
       <div className="site">
         <div className="lp-head">
           <p className="lp-kicker">Alongside you all weekend</p>
@@ -43,7 +43,7 @@ export function FeatureGrid() {
                 <Icon name="pizza" className="icon--brand" />
               </span>
               <div>
-                <p className="grid__note-title">Order dinner by 17:40</p>
+                <p className="grid__note-title">Order dinner by 17:58</p>
                 <p className="grid__note-body">Noodle bar · 150 meals · £1,212 est.</p>
               </div>
             </div>

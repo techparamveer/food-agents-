@@ -2,10 +2,10 @@
    folded into the panel. Builds on dashboard.css tokens and pieces. */
 
 .ob {
-  --side-bg: #f5f6f4;
-  --line: #e6e8e4;
-  --urgent: #c2410c;
-  --urgent-bg: #fff4ed;
+  --side-bg: #f7f4ef;
+  --line: #ebe6de;
+  --urgent: #b42318;
+  --urgent-bg: #fef3f2;
   display: grid;
   grid-template-columns: 16rem minmax(0, 1fr);
   height: 100dvh;

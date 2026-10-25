@@ -1,26 +1,26 @@
-/* Comeda: a 1:1 copy of the Sprout visual system (layout and motion mirror meetdex.ai). */
+/* Comeda: a 1:1 copy of the Sprout visual system (layout and motion mirror meetdex.ai), in pizza-box yellow and orange. */
 
 :root {
-  --background: #fafcf9;
+  --background: #fcfaf6;
   --foreground: #0a0a0a;
   --card: #ffffff;
-  --primary: #111311;
+  --primary: #14110d;
   --primary-foreground: #fafafa;
-  --muted: #edf1ec;
+  --muted: #f3eee6;
   --muted-foreground: #737373;
-  --border: #e3e7e2;
+  --border: #e9e3d9;
 
-  /* Brand green from the logo; the darker shade keeps small text at 4.5:1. */
-  --brand: #5dc068;
-  --brand-text: #1f8137;
+  /* Brand amber from the logo; the darker shade keeps small text at 4.5:1. */
+  --brand: #f59e0b;
+  --brand-text: #b45309;
 
-  /* Product mockup surfaces: a light tint of the brand green. */
-  --app-background: #eef8ef;
-  --app-foreground: #cdebd0;
+  /* Product mockup surfaces: a light tint of the brand yellow. */
+  --app-background: #fff6e5;
+  --app-foreground: #fde4b4;
 
-  /* Halftone inks: green for sunlit ground, near-black for shadow. */
-  --halftone-ink: #5dc068;
-  --halftone-shadow: #0d140f;
+  /* Halftone inks: amber for sunlit ground, near-black for shadow. */
+  --halftone-ink: #f59e0b;
+  --halftone-shadow: #1a1206;
 
   --font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-logo: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
@@ -380,7 +380,7 @@ canvas {
 /* ---------- Hero collage ---------- */
 
 /* Photo tiles rise from behind the product card on long loops: a blurred far
-   layer and a sharper near layer. Each photo is printed as a green duotone
+   layer and a sharper near layer. Each photo is printed as a warm duotone
    with a dot screen, and grows in from its base on load. The band stops just
    past the card's top edge so tiles spend their loop where they can be seen. */
 .collage {
@@ -456,7 +456,7 @@ canvas {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle, transparent 0 0.6px, rgb(250 252 249 / 0.3) 0.95px);
+  background-image: radial-gradient(circle, transparent 0 0.6px, rgb(252 250 246 / 0.3) 0.95px);
   background-size: 3px 3px;
 }
 

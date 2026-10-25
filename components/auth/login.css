@@ -3,7 +3,7 @@
   place-items: center;
   min-height: 100dvh;
   padding: 1.5rem;
-  background: linear-gradient(170deg, var(--app-background), #f5f6f4 55%);
+  background: linear-gradient(170deg, var(--app-background), #f7f4ef 55%);
 }
 
 .auth__card {
@@ -66,6 +66,6 @@
 }
 
 .auth__error {
-  color: #c2410c;
+  color: #b42318;
   font-size: 0.8125rem;
 }
