@@ -1,4 +1,4 @@
-import { bulkPrepMinutes } from "@/lib/restaurants/geo";
+import { bulkPrepMinutes, etaMinutes } from "@/lib/restaurants/geo";
 import { PLATFORMS, type Flag, type PlaceResult, type Platform, type RestaurantEstimates } from "@/lib/restaurants/types";
 import type { Estimate, EstimateSource } from "@/lib/types";
 
@@ -54,10 +54,21 @@ export function heuristicEstimates(p: PlaceResult, headcount: number): Restauran
   const fromListing: EstimateSource = { label: "Comeda estimate from the Google Maps listing", url: p.mapsUrl };
   const cost = heuristicCostPerHead(p);
   const caters = isChain(p) || isFastCasual(p) || (p.priceLevel ?? 2) <= 2;
+  const prep = bulkPrepMinutes(headcount, isFastCasual(p) ? 15 : 25);
+  const eta = etaMinutes(prep, p.distanceMeters);
+  const shorterBy = Math.max(5, Math.ceil(eta * 0.15));
+  const longerBy = Math.max(8, Math.ceil(eta * 0.2));
   return {
     costPerHead: est(cost, { ...fromListing, label: p.priceRange ? "Comeda estimate from Places price range" : "Comeda estimate from price level" }),
     catering: flag(caters, fromListing),
-    prepMinutes: est(bulkPrepMinutes(headcount, isFastCasual(p) ? 15 : 25), { ...fromListing, label: `Comeda estimate for ${headcount} portions` }),
+    prepMinutes: est(prep, { ...fromListing, label: `Comeda estimate for ${headcount} portions` }),
+    etaRange: {
+      ...(p.mockEtaRange ?? { shortestMinutes: Math.max(5, eta - shorterBy), longestMinutes: eta + longerBy }),
+      source: {
+        ...fromListing,
+        label: p.mockEtaRange ? "Seeded sample times to the Andrew Wiles Building" : "Comeda ETA range from prep and distance",
+      },
+    },
     platforms: PLATFORMS.map(({ id, label }) => {
       const url = platformSearchUrl(id, p.name);
       const listed = isChain(p) || isFastCasual(p) || id !== "justeat" || (p.priceLevel ?? 2) <= 1;
@@ -82,6 +93,7 @@ For EACH restaurant below, estimate:
 - costPerHead: GBP per person for a simple filling main (bulk/catering price if they have one), with low/high range.
 - catering: true if they offer catering, party platters, or clearly accept large group orders.
 - prepMinutes: kitchen time to prepare ${headcount} portions.
+- deliveryTimeToVenue: the realistic shortestMinutes and longestMinutes from placing the order until it reaches the Andrew Wiles Building, Woodstock Road, Oxford OX2 6GG (kitchen prep plus courier travel).
 - platforms: for "ubereats", "deliveroo", "justeat": whether the restaurant is listed, the typical delivery fee in GBP, and the listing URL if found.
 Each value needs a sourceUrl: a real page you used (menu, listing or catering page). Use null when unknown; never invent URLs.
 
@@ -89,7 +101,7 @@ Restaurants:
 ${JSON.stringify(list)}
 
 Reply with ONLY a JSON array, no prose, matching:
-[{"id":"<id>","costPerHead":{"value":9.5,"low":8,"high":12,"sourceUrl":"https://..."},"catering":{"value":true,"sourceUrl":"https://..."},"prepMinutes":{"value":45,"sourceUrl":"https://..."},"platforms":[{"platform":"deliveroo","available":true,"deliveryFee":2.49,"url":"https://...","sourceUrl":"https://..."}]}]`;
+[{"id":"<id>","costPerHead":{"value":9.5,"low":8,"high":12,"sourceUrl":"https://..."},"catering":{"value":true,"sourceUrl":"https://..."},"prepMinutes":{"value":45,"sourceUrl":"https://..."},"deliveryTimeToVenue":{"shortestMinutes":35,"longestMinutes":55,"sourceUrl":"https://..."},"platforms":[{"platform":"deliveroo","available":true,"deliveryFee":2.49,"url":"https://...","sourceUrl":"https://..."}]}]`;
 }
 
 type GeminiResponse = {
@@ -267,10 +279,17 @@ export function parseGeminiEstimates(
 
     const rawPlatforms = Array.isArray(row.platforms) ? row.platforms.map(obj) : [];
     const catering = obj(row.catering);
+    const deliveryTimeToVenue = obj(row.deliveryTimeToVenue);
+    const shortestMinutes = num(deliveryTimeToVenue?.shortestMinutes, 5, 300);
+    const longestMinutes = num(deliveryTimeToVenue?.longestMinutes, 5, 360);
     const merged: RestaurantEstimates = {
       costPerHead: numeric(obj(row.costPerHead), 2, 80, base.costPerHead),
       catering: yesNo(catering?.value, catering, base.catering),
       prepMinutes: numeric(obj(row.prepMinutes), 5, 240, base.prepMinutes),
+      etaRange:
+        shortestMinutes !== undefined && longestMinutes !== undefined && shortestMinutes <= longestMinutes
+          ? { shortestMinutes, longestMinutes, source: sourced(deliveryTimeToVenue) }
+          : base.etaRange,
       platforms: base.platforms.map((fallback) => {
         const raw = rawPlatforms.find((r) => asPlatform(r?.platform) === fallback.platform);
         if (!raw) return fallback;

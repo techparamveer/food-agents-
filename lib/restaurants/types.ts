@@ -30,6 +30,12 @@ export type PlatformQuote = {
   url: string;
 };
 
+/** Realistic order-to-door window for the Andrew Wiles Building, in minutes. */
+export type EtaRange = {
+  shortestMinutes: number;
+  longestMinutes: number;
+};
+
 /** What Places (or the seed) says about a restaurant. Facts, not estimates. */
 export type PlaceResult = {
   id: string;
@@ -55,6 +61,8 @@ export type PlaceResult = {
   photo?: { name: string; mapsUrl?: string; credit?: { name: string; url?: string } };
   /** Dietary needs the place is known or likely to cover. */
   serves: Dietary[];
+  /** Explicit sample range used only by the seeded fallback restaurants. */
+  mockEtaRange?: EtaRange;
 };
 
 /** Gemini (grounded) or heuristic estimates for one restaurant. */
@@ -65,6 +73,8 @@ export type RestaurantEstimates = {
   catering: Flag;
   /** Kitchen time for the whole bulk order, minutes. */
   prepMinutes: Estimate;
+  /** Shortest and longest order-to-building times returned by Gemini, or a labelled fallback. */
+  etaRange: EtaRange & { source: Estimate["source"] };
   platforms: Omit<PlatformQuote, "etaMinutes">[];
 };
 
@@ -78,6 +88,8 @@ export type RankedRestaurant = Restaurant & {
   openingPeriods?: OpeningPeriod[];
   /** prepMinutes + travelMinutes. */
   etaMinutes: number;
+  /** Shortest and longest order-to-building times. */
+  etaRange: RestaurantEstimates["etaRange"];
   /** Latest time to order for food to arrive by the slot (ISO). */
   orderBy: string;
   /** costPerHead × headcount, GBP (before delivery). */

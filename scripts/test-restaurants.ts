@@ -168,6 +168,7 @@ const geminiBody = {
             text:
               'Here you go:\n```json\n[{"id":"place-ChIJ-branca","costPerHead":{"value":11.5,"low":9,"high":14,"sourceUrl":"https://branca.co.uk/menu"},' +
               '"catering":{"value":true,"sourceUrl":null},"prepMinutes":{"value":"oops"},' +
+              '"deliveryTimeToVenue":{"shortestMinutes":35,"longestMinutes":55,"sourceUrl":"https://branca.co.uk/menu"},' +
               '"platforms":[{"platform":"Deliveroo","available":true,"deliveryFee":"£2.49","url":"https://deliveroo.co.uk/menu/oxford/jericho/branca","sourceUrl":"https://deliveroo.co.uk/menu/oxford/jericho/branca"},' +
               '{"platform":"just eat","available":false,"deliveryFee":99}]}]\n```',
           },
@@ -199,6 +200,11 @@ assert.equal(g.costPerHead.isEstimate, true);
 assert.equal(g.catering.value, true);
 assert.ok(g.catering.source.url!.includes("grounding-api-redirect"), "null sourceUrl falls back to the grounding chunk");
 assert.deepEqual(g.prepMinutes, heuristic.prepMinutes, "bad number falls back to heuristic");
+assert.deepEqual(g.etaRange, {
+  shortestMinutes: 35,
+  longestMinutes: 55,
+  source: { label: GEMINI_SOURCE_LABEL, url: "https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc" },
+});
 const deliveroo = g.platforms.find((p) => p.platform === "deliveroo")!;
 assert.equal(deliveroo.fee.value, 2.49, "£ strings are parsed; platform labels map to ids");
 assert.deepEqual(deliveroo.fee.source, { label: GEMINI_UNGROUNDED_LABEL }, "a URL Google never returned is not a source");
@@ -276,6 +282,7 @@ assert.equal(best.at(-1)!.id, "closed-at-slot", "closed at slot sinks");
 assert.ok(scored.find((r) => r.id === "cheap-near")!.score > scored.find((r) => r.id === "cheap-far")!.score, "nearer beats farther");
 const near = scored.find((r) => r.id === "cheap-near")!;
 assert.equal(near.etaMinutes, 30 + travelMinutes(300));
+assert.ok(near.etaRange.shortestMinutes <= near.etaMinutes && near.etaRange.longestMinutes >= near.etaMinutes);
 assert.equal(near.travelMinutes.value, travelMinutes(300));
 assert.equal(near.travelMinutes.isEstimate, true);
 assert.equal(near.distanceKm, 0.3);
@@ -330,6 +337,15 @@ assert.equal(fb.source, "fallback");
 assert.ok(fb.restaurants.length > 0);
 assert.ok(fb.restaurants.every((r) => r.costPerHead.value <= 12 && r.serves.includes("veg") && r.source === "fallback"));
 assert.ok(fb.restaurants.every((r) => r.costPerHead.isEstimate && /^https?:\/\//.test(r.costPerHead.source.url ?? "")));
+assert.deepEqual(
+  fb.restaurants.map((r) => [r.etaRange.shortestMinutes, r.etaRange.longestMinutes]),
+  [
+    [50, 72],
+    [48, 68],
+    [55, 82],
+  ],
+  "fallback restaurants expose the made-up shortest and longest times to the Andrew Wiles Building",
+);
 assert.ok(fb.restaurants.every((r) => r.openAtSlot !== false), "open-at-slot filter on by default");
 for (let i = 1; i < fb.restaurants.length; i++) {
   assert.ok(fb.restaurants[i - 1]!.score >= fb.restaurants[i]!.score, "fallback sorted best-first");

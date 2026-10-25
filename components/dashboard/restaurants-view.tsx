@@ -8,7 +8,7 @@ import type { Ask } from "@/components/dashboard/planner-pane";
 import { GEMINI_UNGROUNDED_LABEL, platformLabel } from "@/lib/restaurants/estimate-parse";
 import type { FindRestaurantsResult } from "@/lib/restaurants/find-core";
 import { filterRestaurants, sortRestaurants, type SortKey } from "@/lib/restaurants/rank";
-import type { RankedRestaurant } from "@/lib/restaurants/types";
+import type { EtaRange, RankedRestaurant } from "@/lib/restaurants/types";
 import { DIETARY, type Dietary, type Estimate, type MealSlot, type Restaurant } from "@/lib/types";
 
 /* Roles → Restaurants: Places results near the venue, ranked by estimated cost per head, ETA
@@ -29,6 +29,14 @@ const km = (n: number) => `${n.toLocaleString("en-GB", { maximumFractionDigits: 
 const servesLabel = (serves: Dietary[]) =>
   serves.length ? `Serves ${serves.map((d) => DIETARY.find((x) => x.id === d)!.label.toLowerCase()).join(", ")}` : "Dietary options unknown";
 const priceLabel = (level?: number) => (level ? "£".repeat(level) : "—");
+
+function EtaWindow({ range, offset = 0 }: { range: EtaRange; offset?: number }) {
+  return (
+    <span className="eta-window">
+      Shortest {minutes(range.shortestMinutes + offset)} · Longest {minutes(range.longestMinutes + offset)} to Andrew Wiles Building
+    </span>
+  );
+}
 
 /** For inside buttons, where a link can't go: the source link sits beside the row instead. */
 function EstText({ estimate, format }: { estimate: Estimate; format: (n: number) => string }) {
@@ -349,7 +357,10 @@ function RestaurantList({
                       </span>
                       <span className="pick__foot">
                         <span>{money(r.totalCost)} for {slot.headcount}</span>
-                        <span>ETA {minutes(r.etaMinutes)}</span>
+                        <span className="pick__eta">
+                          <span>ETA {minutes(r.etaMinutes)}</span>
+                          <EtaWindow range={r.etaRange} />
+                        </span>
                       </span>
                     </button>
                   </li>
@@ -401,6 +412,7 @@ function RestaurantList({
                             </span>
                           )}
                         </span>
+                        <EtaWindow range={r.etaRange} />
                       </span>
                     </button>
                     <a
@@ -522,6 +534,7 @@ function RestaurantDetail({
                   <span>
                     Order by {clock(r.orderBy)} for {serves} · estimate
                   </span>
+                  <EtaWindow range={r.etaRange} />
                 </p>
               </div>
               <dl className="glance">
@@ -611,6 +624,7 @@ function RestaurantDetail({
                       <span className="role-row__chips">
                         <span className="pill pill--muted">ETA {minutes(p.etaMinutes)} est.</span>
                       </span>
+                      <EtaWindow range={r.etaRange} offset={p.etaMinutes - r.etaMinutes} />
                     </span>
                   </div>
                 </div>
@@ -630,7 +644,7 @@ function RestaurantDetail({
           )}
 
           <p className="roles__source">
-            Cost per head: {r.costPerHead.source.label}. Delivery fees and ETAs are estimates; check the platform before ordering.
+            Cost per head: {r.costPerHead.source.label}. ETA range: {r.etaRange.source.label}. Delivery fees and ETAs are estimates; check the platform before ordering.
             Comeda never places orders.
           </p>
         </article>

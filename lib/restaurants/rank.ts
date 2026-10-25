@@ -69,6 +69,11 @@ export function scoreRestaurants(
     if (!est) return [];
     const travel = travelMinutes(place.distanceMeters);
     const eta = etaMinutes(est.prepMinutes.value, place.distanceMeters);
+    const etaRange = {
+      ...est.etaRange,
+      shortestMinutes: Math.min(est.etaRange.shortestMinutes, eta),
+      longestMinutes: Math.max(est.etaRange.longestMinutes, eta),
+    };
     const platforms = est.platforms.map((q) => ({ ...q, etaMinutes: eta + DISPATCH_MINUTES[q.platform] }));
     const delivery: DeliveryOption[] = platforms
       .filter((q) => q.available.value)
@@ -120,6 +125,7 @@ export function scoreRestaurants(
         platforms,
         openingPeriods: place.openingPeriods,
         etaMinutes: eta,
+        etaRange,
         orderBy: orderByTime(slot, eta).toISOString(),
         totalCost: Math.round(est.costPerHead.value * headcount * 100) / 100,
         openAtSlot: isOpenAt(place.openingPeriods, slot),

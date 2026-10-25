@@ -1,7 +1,7 @@
 import { distanceMeters } from "@/lib/restaurants/geo";
 import { daily, describeHours } from "@/lib/restaurants/hours";
 import { mapsSearchUrl } from "@/lib/restaurants/parse-places";
-import type { OpeningPeriod, PlaceResult } from "@/lib/restaurants/types";
+import type { EtaRange, OpeningPeriod, PlaceResult } from "@/lib/restaurants/types";
 import { OXHACK_EVENT } from "@/lib/seed/oxhack";
 import type { Dietary, Venue } from "@/lib/types";
 
@@ -19,6 +19,7 @@ type Seed = {
   priceLevel: 1 | 2 | 3 | 4;
   hours: OpeningPeriod[];
   serves: Dietary[];
+  etaRange: EtaRange;
 };
 
 const h = (hour: number, minute = 0) => hour * 60 + minute;
@@ -38,6 +39,7 @@ const SEEDS: Seed[] = [
     priceLevel: 1,
     hours: daily(h(11), h(23)),
     serves: ["veg", "vegan", "gf"],
+    etaRange: { shortestMinutes: 50, longestMinutes: 72 },
   },
   {
     name: "Gloucester Green Falafel",
@@ -50,6 +52,7 @@ const SEEDS: Seed[] = [
     priceLevel: 1,
     hours: daily(h(10), h(23, 30)),
     serves: ["veg", "vegan", "halal"],
+    etaRange: { shortestMinutes: 48, longestMinutes: 68 },
   },
   {
     name: "Cowley Road Curry House",
@@ -62,6 +65,7 @@ const SEEDS: Seed[] = [
     priceLevel: 2,
     hours: daily(h(11, 30), h(23)),
     serves: ["veg", "vegan", "halal", "gf"],
+    etaRange: { shortestMinutes: 55, longestMinutes: 82 },
   },
 ];
 
@@ -84,5 +88,6 @@ export function seedPlaces(venue: Venue = DEFAULT_VENUE): PlaceResult[] {
     hours: describeHours(s.hours),
     mapsUrl: mapsSearchUrl(s.name, s.address),
     serves: s.serves,
+    mockEtaRange: s.etaRange,
   }));
 }
