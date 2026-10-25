@@ -73,6 +73,11 @@ export function heuristicEstimates(p: PlaceResult, headcount: number): Restauran
 
 /* ---------- Gemini ---------- */
 
+/**
+ * The grounded estimate prompt. Research prose comes first, JSON last: asked for "ONLY a JSON array",
+ * gemini-3.8-flash answers from memory and never calls Google Search (no groundingMetadata at all).
+ * Each paragraph opens with the restaurant's quoted id so `groundingByRestaurant` can attribute sources.
+ */
 export function buildEstimatePrompt(places: PlaceResult[], headcount: number, city = "Oxford, UK") {
   const list = places.map((p) => ({ id: p.id, name: p.name, address: p.address, cuisine: p.cuisine, priceLevel: p.priceLevel, website: p.websiteUrl }));
   return `You are pricing a bulk food order for a student hackathon in ${city} feeding ${headcount} people.
@@ -88,7 +93,9 @@ Each value needs a sourceUrl: a real page you used (menu, listing or catering pa
 Restaurants:
 ${JSON.stringify(list)}
 
-Reply with ONLY a JSON array, no prose, matching:
+First research each restaurant with Google Search and write one short paragraph per restaurant, headed by its id in quotes
+(e.g. "${places[0]?.id ?? "id"}": ...), saying what you found: prices, catering, which platforms list it and their fees.
+After the paragraphs, give the data as one fenced json block in this shape:
 [{"id":"<id>","costPerHead":{"value":9.5,"low":8,"high":12,"sourceUrl":"https://..."},"catering":{"value":true,"sourceUrl":"https://..."},"prepMinutes":{"value":45,"sourceUrl":"https://..."},"platforms":[{"platform":"deliveroo","available":true,"deliveryFee":2.49,"url":"https://...","sourceUrl":"https://..."}]}]`;
 }
 
@@ -186,9 +193,10 @@ export function matchChunk(url: unknown, chunks: GroundingChunk[]): GroundingChu
   return chunks.find((c) => c.host && (host === c.host || host.endsWith(`.${c.host}`)));
 }
 
-/** Pull the first JSON array out of model text (handles ```json fences and stray prose). */
+/** Pull the JSON array out of model text: the last fenced block holding one, else the outermost [...] in the text. */
 export function extractJsonArray(text: string): unknown[] | null {
-  const unfenced = text.replace(/```(?:json)?/gi, "");
+  const fenced = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)].map((m) => m[1]!.trim()).filter((b) => b.startsWith("["));
+  const unfenced = fenced.at(-1) ?? text.replace(/```(?:json)?/gi, "");
   const start = unfenced.indexOf("[");
   const end = unfenced.lastIndexOf("]");
   if (start === -1 || end <= start) return null;

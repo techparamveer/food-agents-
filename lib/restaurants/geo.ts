@@ -44,7 +44,33 @@ export function orderByTime(slot: Date, eta: number): Date {
   return new Date(slot.getTime() - eta * 60_000);
 }
 
-/** Google Maps cycling directions, the closest public stand-in for a courier route. */
-export function directionsUrl(restaurant: LatLon, venue: LatLon) {
-  return `https://www.google.com/maps/dir/?api=1&origin=${restaurant.lat},${restaurant.lon}&destination=${venue.lat},${venue.lon}&travelmode=bicycling`;
+/** Google Maps directions from the restaurant to the venue. Cycling is the closest public stand-in for a courier. */
+export function directionsUrl(restaurant: LatLon, venue: LatLon, mode: "bicycling" | "driving" = "bicycling") {
+  return `https://www.google.com/maps/dir/?api=1&origin=${restaurant.lat},${restaurant.lon}&destination=${venue.lat},${venue.lon}&travelmode=${mode}`;
+}
+
+/* ---------- Routes API ---------- */
+
+/** "633s" → 633. Anything else → undefined. */
+export function durationSeconds(value: unknown): number | undefined {
+  const m = typeof value === "string" ? /^(\d+(?:\.\d+)?)s$/.exec(value) : null;
+  return m ? Number(m[1]) : undefined;
+}
+
+/** Courier minutes from a Routes driving time: the drive (rounded up) plus the handover. */
+export const routeTravelMinutes = (seconds: number) => Math.ceil(seconds / 60) + HANDOVER_MINUTES;
+
+/**
+ * Driving seconds per origin from a `computeRouteMatrix` response (many origins → one venue).
+ * Index i is origin i; undefined where Google found no route or the element failed.
+ */
+export function parseRouteMatrix(body: unknown, origins: number): (number | undefined)[] {
+  const out: (number | undefined)[] = Array.from({ length: origins }, () => undefined);
+  for (const el of Array.isArray(body) ? body : []) {
+    const e = el as { originIndex?: number; condition?: string; status?: { code?: number }; duration?: unknown };
+    const i = e.originIndex ?? 0; // proto3 drops zero values, so a missing index is origin 0
+    if (!Number.isInteger(i) || i < 0 || i >= origins || e.condition !== "ROUTE_EXISTS" || e.status?.code) continue;
+    out[i] = durationSeconds(e.duration);
+  }
+  return out;
 }

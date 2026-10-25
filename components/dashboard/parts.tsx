@@ -69,12 +69,14 @@ export function PhotoCredit({ restaurant }: { restaurant: Restaurant }) {
   );
 }
 
-/** A number with its provenance: "£6.50 est." linking to the source when there is one. */
+/** A number with its provenance: "£6.50 est." linking to the source when there is one.
+    A range shows as "25–40 min" (`format` applies to the upper bound, so it suits units after the number). */
 export function EstimateValue({ estimate, format }: { estimate: Estimate; format: (n: number) => string }) {
   const label = `${estimate.isEstimate ? "Estimate" : "Confirmed"} · ${estimate.source.label}`;
+  const { range } = estimate;
   return (
     <span title={label}>
-      {format(estimate.value)}
+      {range && range.low !== range.high ? `${Math.round(range.low)}–${format(range.high)}` : format(estimate.value)}
       {estimate.isEstimate &&
         (estimate.source.url ? (
           <a className="estimate" href={estimate.source.url} target="_blank" rel="noreferrer">

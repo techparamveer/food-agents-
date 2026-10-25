@@ -1,3 +1,4 @@
+import type { ListingSnapshot } from "@/lib/restaurants/listings";
 import type { DeliveryPlatform, Dietary, Estimate, Restaurant } from "@/lib/types";
 
 /* Types internal to the restaurants pipeline. What leaves it is a `RankedRestaurant`,
@@ -24,8 +25,10 @@ export type PlatformQuote = {
   available: Flag;
   /** Delivery fee for the whole order, GBP. */
   fee: Estimate;
-  /** Prep + travel + platform dispatch, minutes. */
-  etaMinutes: number;
+  /** Order to door, minutes: the platform's own figure (plus bulk cooking time) when scraped, else prep + travel + dispatch. */
+  eta: Estimate;
+  /** When the platform's listing was read (ISO). Only set when this quote matched a scraped listing. */
+  checkedAt?: string;
   /** Listing if known, otherwise a search for it. */
   url: string;
 };
@@ -65,7 +68,20 @@ export type RestaurantEstimates = {
   catering: Flag;
   /** Kitchen time for the whole bulk order, minutes. */
   prepMinutes: Estimate;
-  platforms: Omit<PlatformQuote, "etaMinutes">[];
+  platforms: Omit<PlatformQuote, "eta" | "checkedAt">[];
+};
+
+/** One restaurant's driving time to the venue from the Routes API. */
+export type RouteTime = {
+  seconds: number;
+  /** Departure the traffic model used (ISO); absent = current traffic. */
+  departAt?: string;
+};
+
+/** Live figures that beat the estimates when present: scraped platform listings and Routes drive times by place id. */
+export type LiveTimes = {
+  listings: ListingSnapshot[];
+  routes: Record<string, RouteTime>;
 };
 
 /** live = fresh API calls, cache = served from cache, fallback = seeded Oxford data. */
@@ -76,7 +92,11 @@ export type RankedRestaurant = Restaurant & {
   /** Every platform, listed or not, for the comparison table. `delivery` holds only the usable ones. */
   platforms: PlatformQuote[];
   openingPeriods?: OpeningPeriod[];
-  /** prepMinutes + travelMinutes. */
+  /** Order to door: the fastest scraped platform ETA, else prep + travel (Routes, then the distance heuristic). */
+  eta: Estimate;
+  /** Whose listing `eta` came from; absent when it's prep + travel. */
+  etaPlatform?: Platform;
+  /** `eta.value`, the figure ranking and `orderBy` use. */
   etaMinutes: number;
   /** Latest time to order for food to arrive by the slot (ISO). */
   orderBy: string;

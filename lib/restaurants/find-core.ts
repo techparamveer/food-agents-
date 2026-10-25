@@ -1,7 +1,7 @@
 import { heuristicEstimates } from "@/lib/restaurants/estimate-parse";
 import { filterRestaurants, scoreRestaurants, sortRestaurants, type SortKey } from "@/lib/restaurants/rank";
 import { DEFAULT_VENUE, seedPlaces } from "@/lib/restaurants/seed";
-import type { DataSource, PlaceResult, RankedRestaurant, RestaurantEstimates } from "@/lib/restaurants/types";
+import type { DataSource, LiveTimes, PlaceResult, RankedRestaurant, RestaurantEstimates } from "@/lib/restaurants/types";
 import { DIETARY, type Dietary, type DietaryMix, type Venue } from "@/lib/types";
 
 /**
@@ -40,6 +40,8 @@ export type FindRestaurantsResult = {
   source: DataSource;
   /** How many restaurants have Gemini-grounded (not heuristic) cost estimates. */
   grounded: number;
+  /** How many restaurants have a delivery ETA read from a platform listing (Just Eat, Deliveroo). */
+  scraped: number;
   venue: Venue;
   slotTime: string;
   headcount: number;
@@ -73,8 +75,9 @@ export const clampHeadcount = (n: unknown) => Math.min(MAX_HEADCOUNT, Math.max(1
 const BANDS = [50, 100, 200, 500, MAX_HEADCOUNT];
 export const headcountBand = (n: number) => BANDS.find((b) => clampHeadcount(n) <= b) ?? MAX_HEADCOUNT;
 
-/** Cache key for one restaurant's estimates. Bump the version when the estimate shape or sourcing rules change. */
-export const estimatesKey = (placeId: string, headcount: number) => `estimates:v2:${placeId}:${headcountBand(headcount)}`;
+/** Cache key for one restaurant's estimates. Bump the version when the estimate shape or sourcing rules change.
+    v3: the prompt asks for prose research before the JSON, so Gemini actually searches (v2 answers were never grounded). */
+export const estimatesKey = (placeId: string, headcount: number) => `estimates:v3:${placeId}:${headcountBand(headcount)}`;
 
 export function normaliseInput(input: FindRestaurantsInput): NormalisedInput {
   const slot = input.slotTime instanceof Date ? input.slotTime : new Date(input.slotTime);
@@ -99,7 +102,7 @@ export function finalise(
   input: NormalisedInput,
   places: PlaceResult[],
   estimates: Map<string, RestaurantEstimates>,
-  meta: { source: DataSource; grounded: number; warnings: string[] },
+  meta: { source: DataSource; grounded: number; warnings: string[]; live?: LiveTimes },
 ): FindRestaurantsResult {
   const scored = scoreRestaurants(places, estimates, {
     headcount: input.headcount,
@@ -107,12 +110,14 @@ export function finalise(
     source: meta.source,
     venue: input.venue,
     dietaryMix: input.dietaryMix,
+    live: meta.live,
   });
   return {
     restaurants: sortRestaurants(filterRestaurants(scored, input), input.sort),
     cuisines: [...new Set(scored.map((r) => r.cuisine))].sort(),
     source: meta.source,
     grounded: meta.grounded,
+    scraped: scored.filter((r) => r.platforms.some((q) => q.checkedAt && q.eta.range)).length,
     venue: input.venue,
     slotTime: input.slot.toISOString(),
     headcount: input.headcount,

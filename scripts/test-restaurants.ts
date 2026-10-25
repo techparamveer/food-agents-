@@ -259,7 +259,7 @@ assert.equal(near.travelMinutes.isEstimate, true);
 assert.equal(near.distanceKm, 0.3);
 assert.equal(near.totalCost, 1050);
 assert.equal(near.orderBy, orderByTime(saturdayLunch, near.etaMinutes).toISOString());
-assert.ok(near.platforms.every((q) => q.etaMinutes > near.etaMinutes), "platform ETA adds dispatch");
+assert.ok(near.platforms.every((q) => q.eta.value > near.etaMinutes), "platform ETA adds dispatch");
 assert.ok(near.delivery.length > 0 && near.delivery.every((d) => d.eta.value >= near.etaMinutes), "delivery options for the shared type");
 assert.ok(near.monogram === "C" && /^#[0-9a-f]{6}$/.test(near.color));
 assert.equal(scored.find((r) => r.id === "closed-at-slot")!.openAtSlot, false);

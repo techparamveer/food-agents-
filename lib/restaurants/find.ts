@@ -2,7 +2,8 @@ import "server-only";
 import { estimateRestaurants } from "@/lib/estimates";
 import { fetchPhotoUri, searchNearbyRestaurants } from "@/lib/places";
 import { HOUR, cacheGet, cacheSet } from "@/lib/restaurants/cache";
-import { heuristicEstimates, isGroundedEstimate } from "@/lib/restaurants/estimate-parse";
+import { heuristicEstimates, isGroundedEstimate, platformLabel } from "@/lib/restaurants/estimate-parse";
+import { liveTimes } from "@/lib/restaurants/live";
 import {
   estimatesKey,
   fallbackResult,
@@ -59,8 +60,11 @@ function once<T>(map: Map<string, Promise<T>>, key: string, run: () => Promise<T
  * estimated cost per head, ETA and rating.
  *
  * Live path: Places API (New) Nearby Search → Gemini with Google Search grounding for
- * per-head cost, catering and delivery fees → ETA = prep + travel from distance. Places is
- * cached 24 h; estimates 72 h when grounded, 12 h otherwise, per headcount band. Without keys,
+ * per-head cost, catering and delivery fees. Alongside, Just Eat and Deliveroo listings for the
+ * venue's postcode (real ETA ranges, fees, who's listed) and Google Routes drive times (live.ts).
+ * ETA, best first: the platform's own ETA → prep + Routes drive → prep + distance heuristic. Places is
+ * cached 24 h; estimates 72 h when grounded, 12 h otherwise, per headcount band; listings 12 min;
+ * drive times 6 h per departure. Without keys,
  * or when Places fails, it returns the seeded Oxford list with heuristic estimates and says why in
  * `warnings`. It never throws for upstream failures, only for invalid input (an unparseable `slotTime`).
  *
@@ -101,6 +105,8 @@ export async function findRestaurants(input: FindRestaurantsInput): Promise<Find
     fetched = true;
   }
 
+  // Platform listings and drive times don't depend on the estimates: fetch them alongside Gemini.
+  const live = liveTimes(places, q.venue, q.slot);
   const band = headcountBand(q.headcount);
   const estimates = new Map<string, RestaurantEstimates>();
   const cached = await Promise.all(places.map((p) => cacheGet<RestaurantEstimates>(estimatesKey(p.id, band))));
@@ -130,7 +136,11 @@ export async function findRestaurants(input: FindRestaurantsInput): Promise<Find
   for (const p of places) if (!estimates.has(p.id)) estimates.set(p.id, heuristicEstimates(p, band));
 
   const grounded = [...estimates.values()].filter(isGroundedEstimate).length;
-  return finalise(q, places, estimates, { source: fetched ? "live" : "cache", grounded, warnings });
+  const times = await live;
+  for (const s of times.listings) {
+    if (!s.ok) warnings.push(`${platformLabel(s.platform)} didn't answer: its fees and ETAs are Comeda estimates.`);
+  }
+  return finalise(q, places, estimates, { source: fetched ? "live" : "cache", grounded, warnings, live: times });
 }
 
 /**

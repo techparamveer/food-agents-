@@ -1,4 +1,5 @@
 import { londonClock } from "@/lib/london-time";
+import type { Estimate } from "@/lib/types";
 
 /* Order deadlines. Order-by = slot time − restaurant prep − delivery travel, so
    "order by 17:40 for 18:30 dinner" means 20 minutes' prep and a 30-minute ride. */
@@ -38,6 +39,11 @@ function duration(minutes: number): string {
   if (d > 0) return `${d}d ${h}h`;
   if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
   return `${m}m`;
+}
+
+/** "25–40 min" when the source gave a range, else "35 min". Deadlines use the upper bound (`value`). */
+export function minutesLabel(e: Pick<Estimate, "value" | "range">) {
+  return e.range && e.range.low !== e.range.high ? `${Math.round(e.range.low)}–${Math.round(e.range.high)} min` : `${Math.round(e.value)} min`;
 }
 
 /** "Order by 17:40 for 18:30 dinner". */

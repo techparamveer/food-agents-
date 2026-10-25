@@ -5,9 +5,10 @@ import { clock, money, useDashboard } from "@/components/dashboard/data";
 import { Icon } from "@/components/dashboard/icon";
 import { EstimateValue, FilterMenu, PhotoCredit, RestaurantTile } from "@/components/dashboard/parts";
 import type { Ask } from "@/components/dashboard/planner-pane";
+import { minutesLabel } from "@/lib/countdown";
 import { GEMINI_UNGROUNDED_LABEL, platformLabel } from "@/lib/restaurants/estimate-parse";
 import { fallbackResult, normaliseInput, type FindRestaurantsResult } from "@/lib/restaurants/find-core";
-import { filterRestaurants, sortRestaurants, type SortKey } from "@/lib/restaurants/rank";
+import { NORMAL_ORDER_PREP, filterRestaurants, sortRestaurants, type SortKey } from "@/lib/restaurants/rank";
 import type { RankedRestaurant } from "@/lib/restaurants/types";
 import { DIETARY, type Dietary, type Estimate, type MealSlot, type Restaurant } from "@/lib/types";
 
@@ -31,6 +32,22 @@ const servesLabel = (serves: Dietary[]) =>
 const priceLabel = (level?: number) => (level ? "£".repeat(level) : "—");
 
 /** For inside buttons, where a link can't go: the source link sits beside the row instead. */
+/** "Just Eat, checked 18:02" when a platform's listing gave the ETA, else "estimate". */
+function etaSource(r: RankedRestaurant) {
+  const checkedAt = r.platforms.find((p) => p.platform === r.etaPlatform)?.checkedAt;
+  return r.etaPlatform && checkedAt ? `${platformLabel(r.etaPlatform)}, checked ${clock(checkedAt)}` : "estimate";
+}
+
+/** "ETA 25–40 min · Just Eat" when a platform's listing gave it, else "ETA 45 min est.". */
+function EtaText({ r }: { r: RankedRestaurant }) {
+  return (
+    <span title={r.eta.source.label}>
+      ETA {minutesLabel(r.eta)}
+      {r.etaPlatform ? ` · ${platformLabel(r.etaPlatform)}` : <span className="estimate"> est.</span>}
+    </span>
+  );
+}
+
 function EstText({ estimate, format }: { estimate: Estimate; format: (n: number) => string }) {
   return (
     <span title={`Estimate · ${estimate.source.label}`}>
@@ -340,12 +357,12 @@ function RestaurantList({
                         {r.rating !== undefined ? ` · ${r.rating}★` : ""}
                       </span>
                       <span className="pick__why">
-                        <EstText estimate={r.costPerHead} format={money} /> a head, food at the door in about {minutes(r.etaMinutes)}.{" "}
+                        <EstText estimate={r.costPerHead} format={money} /> a head, food at the door in about {minutesLabel(r.eta)}.{" "}
                         Order by {clock(r.orderBy)}.
                       </span>
                       <span className="pick__foot">
                         <span>{money(r.totalCost)} for {slot.headcount}</span>
-                        <span>ETA {minutes(r.etaMinutes)}</span>
+                        <EtaText r={r} />
                       </span>
                     </button>
                   </li>
@@ -387,7 +404,9 @@ function RestaurantList({
                           <EstText estimate={r.costPerHead} format={money} /> a head
                         </span>
                         <span className="role-row__chips">
-                          <span className="pill pill--muted">ETA {minutes(r.etaMinutes)} est.</span>
+                          <span className="pill pill--muted" title={r.eta.source.label}>
+                            <EtaText r={r} />
+                          </span>
                           {r.rating !== undefined && (
                             <span className="pill pill--muted">
                               <Icon name="star" />
@@ -514,9 +533,12 @@ function RestaurantDetail({
                   </span>
                 </p>
                 <p className="rcard__place">
-                  ETA {minutes(r.etaMinutes)}
+                  ETA {minutesLabel(r.eta)}
                   <span>
-                    Order by {clock(r.orderBy)} for {serves} · estimate
+                    Order by {clock(r.orderBy)} for {serves} ·{" "}
+                    <a className="estimate" href={r.eta.source.url ?? r.mapsUrl} target="_blank" rel="noreferrer" title={r.eta.source.label}>
+                      {etaSource(r)}
+                    </a>
                   </span>
                 </p>
               </div>
@@ -557,8 +579,11 @@ function RestaurantDetail({
                 Why Comeda ranked this #{index + 1}
               </p>
               <p>
-                About {money(r.costPerHead.value)} a head and {minutes(r.etaMinutes)} from order to door ({minutes(r.prepMinutes.value)} prep +{" "}
-                {minutes(r.travelMinutes.value)} travel)
+                About {money(r.costPerHead.value)} a head and {minutesLabel(r.eta)} from order to door (
+                {r.etaPlatform
+                  ? `${platformLabel(r.etaPlatform)}'s own delivery time${r.prepMinutes.value > NORMAL_ORDER_PREP ? `, plus cooking for ${slot.headcount}` : ""}`
+                  : `${minutes(r.prepMinutes.value)} prep + ${minutes(r.travelMinutes.value)} travel`}
+                )
                 {r.rating !== undefined ? `, rated ${r.rating}★` : ""}.{" "}
                 {r.catering.value
                   ? "Looks set up for large orders."
@@ -594,7 +619,7 @@ function RestaurantDetail({
                         </a>
                       </span>
                       <span className="role-row__company">
-                        {p.available.value ? "Listed" : "Probably not listed"} ·{" "}
+                        {p.checkedAt ? "Listed" : p.available.value ? "Probably listed" : "Probably not listed"} ·{" "}
                         <a className="estimate" href={p.available.source.url} target="_blank" rel="noreferrer">
                           {p.available.source.label}
                         </a>
@@ -605,7 +630,10 @@ function RestaurantDetail({
                         <EstimateValue estimate={p.fee} format={money} /> delivery
                       </span>
                       <span className="role-row__chips">
-                        <span className="pill pill--muted">ETA {minutes(p.etaMinutes)} est.</span>
+                        <span className="pill pill--muted" title={p.eta.source.label}>
+                          ETA {minutesLabel(p.eta)}
+                          {p.checkedAt && p.eta.range ? "" : " est."}
+                        </span>
                       </span>
                     </span>
                   </div>
@@ -626,8 +654,9 @@ function RestaurantDetail({
           )}
 
           <p className="roles__source">
-            Cost per head: {r.costPerHead.source.label}. Delivery fees and ETAs are estimates; check the platform before ordering.
-            Comeda never places orders.
+            Cost per head: {r.costPerHead.source.label}. Just Eat and Deliveroo times (and Just Eat fees) are read from their listings for
+            the venue&apos;s postcode, plus cooking time for a bulk order; Uber Eats and anything unmatched are Comeda estimates. Check the
+            platform before ordering. Comeda never places orders.
           </p>
         </article>
       </div>

@@ -7,7 +7,7 @@ import { EstimateValue, RestaurantTile } from "@/components/dashboard/parts";
 import { usePlanner } from "@/components/dashboard/planner-state";
 import { iso, londonClock, londonDay, londonInstant } from "@/lib/london-time";
 import { budgetSummary, mergeRestaurants, type PlannerForm } from "@/lib/plan-sync";
-import type { MealPlan, SlotPlan } from "@/lib/planner";
+import { doorMinutes, type MealPlan, type SlotPlan } from "@/lib/planner";
 import type { SearchInfo } from "@/lib/restaurant-search";
 import { DIETARY, type Dietary, type OrderLine, type Restaurant } from "@/lib/types";
 
@@ -652,7 +652,7 @@ function RestaurantRows({ restaurants }: { restaurants: Restaurant[] }) {
             <span className="ag__card-text">
               <span className="ag__card-title">{r.name}</span>
               <span className="ag__card-meta">
-                {r.cuisine} · <EstimateValue estimate={r.costPerHead} format={(n) => `${money(n)}/head`} /> · {r.prepMinutes.value + r.travelMinutes.value} min
+                {r.cuisine} · <EstimateValue estimate={r.costPerHead} format={(n) => `${money(n)}/head`} /> · {doorMinutes(r)} min
               </span>
             </span>
           </span>
