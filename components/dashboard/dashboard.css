@@ -1,14 +1,14 @@
-/* Signed-in app: Jack & Jill-style shell (sidebar, agent chat, work panel), Buffer-style
-   organisation inside the panel, Dex-style role detail. Neutral greys, brand amber accent. */
+/* Signed-in app: neutral workspace, white surfaces, sunny yellow actions and coral urgency. */
 
 .shell {
   --side-w: 15rem;
   --chat-w: minmax(22rem, 30rem);
-  --side-bg: #f7f4ef;
-  --chat-bg: #fcfaf7;
-  --line: #ebe6de;
-  --urgent: #b42318;
-  --urgent-bg: #fef3f2;
+  --side-bg: var(--side-surface);
+  --chat-bg: var(--chat-surface);
+  --panel-bg: var(--canvas);
+  --line: var(--border);
+  --urgent: var(--danger);
+  --urgent-bg: var(--danger-soft);
   --new: var(--brand-text);
   display: grid;
   grid-template-columns: var(--side-w) var(--chat-w) minmax(0, 1fr);
@@ -81,13 +81,14 @@
 
 .side__item:hover,
 .side__recent:hover {
-  background: color-mix(in oklab, var(--foreground) 5%, transparent);
+  background: color-mix(in oklab, var(--brand) 11%, transparent);
   color: var(--foreground);
 }
 
 .side__item.is-active {
-  background: color-mix(in oklab, var(--foreground) 7%, transparent);
-  color: var(--foreground);
+  background: var(--primary);
+  box-shadow: 0 10px 22px -16px color-mix(in oklab, var(--brand) 88%, #8a5500);
+  color: var(--primary-foreground);
   font-weight: 500;
 }
 
@@ -97,7 +98,7 @@
 }
 
 .side__item.is-active .icon {
-  color: var(--brand-text);
+  color: inherit;
 }
 
 .side__label {
@@ -249,7 +250,7 @@
   height: 2rem;
   flex-shrink: 0;
   border-radius: 999px;
-  background: linear-gradient(140deg, #fcd34d, #f97316);
+  background: linear-gradient(140deg, var(--brand), var(--coral));
   color: #fff;
   font-size: 0.75rem;
   font-weight: 600;
@@ -386,7 +387,7 @@
   max-width: 85%;
   padding: 0.625rem 0.875rem;
   border-radius: 1rem 1rem 0.25rem 1rem;
-  background: color-mix(in oklab, var(--brand) 14%, #fff);
+  background: color-mix(in oklab, var(--brand) 15%, var(--card));
   font-size: 0.9375rem;
   line-height: 1.5;
 }
@@ -496,7 +497,8 @@
 }
 
 .ag__call:hover {
-  background: var(--brand-text);
+  background: color-mix(in oklab, var(--primary) 88%, #c77700);
+  color: var(--primary-foreground);
 }
 
 /* Tool-result card inside the chat. */
@@ -816,7 +818,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  background: var(--card);
+  background: var(--panel-bg);
   overflow-y: auto;
 }
 
@@ -997,8 +999,9 @@
   width: 2.75rem;
   height: 2.75rem;
   border-radius: var(--radius-xl);
-  background: var(--card);
+  background: color-mix(in oklab, var(--brand) 13%, var(--card));
   box-shadow: var(--shadow-sm);
+  color: var(--brand-text);
 }
 
 .dash-head__icon .icon {
@@ -1827,7 +1830,7 @@
 }
 
 .dash-emp__dot--action {
-  background: #f59e0b;
+  background: var(--brand);
 }
 
 .dash-emp__dot--waiting {
@@ -2474,21 +2477,23 @@
   gap: 0.875rem;
   padding: 1rem 1.25rem;
   border-radius: var(--radius-xl);
-  background: linear-gradient(120deg, var(--app-background), var(--card));
-  box-shadow: inset 0 0 0 var(--hairline) color-mix(in oklab, var(--brand) 40%, transparent);
+  background: linear-gradient(120deg, #ffad00, #ffc928);
+  box-shadow: inset 0 0 0 var(--hairline) color-mix(in oklab, #9b6100 28%, transparent),
+    0 16px 30px -24px rgb(155 97 0 / 0.65);
   font-size: 0.875rem;
   transition: box-shadow 0.15s;
 }
 
 .guide-banner:hover {
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--brand) 60%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, #8a5500 42%, transparent),
+    0 18px 34px -24px rgb(155 97 0 / 0.78);
 }
 
 .guide-banner > span {
   display: flex;
   flex: 1;
   flex-direction: column;
-  color: var(--muted-foreground);
+  color: color-mix(in oklab, var(--foreground) 72%, transparent);
 }
 
 .guide-banner strong {
@@ -2500,6 +2505,7 @@
 .guide-banner > .icon:first-child {
   width: 1.375rem;
   height: 1.375rem;
+  color: var(--foreground);
 }
 
 .upcoming {
@@ -2582,7 +2588,8 @@
   height: 2.25rem;
   margin-bottom: 0.375rem;
   border-radius: var(--radius-md);
-  background: var(--muted);
+  background: color-mix(in oklab, var(--brand) 16%, var(--card));
+  color: var(--brand-text);
 }
 
 .practice__card h3 {
@@ -2878,7 +2885,7 @@
 
 .appd__delete {
   margin-right: auto;
-  color: #b42318;
+  color: var(--danger);
 }
 
 .appd__prep {
@@ -3059,7 +3066,7 @@
 
 .ag__tool.is-on,
 .ag__call.is-on {
-  background: #b42318;
+  background: var(--danger);
   color: #fff;
 }
 
@@ -3185,7 +3192,7 @@
   width: min(22rem, 100%);
   padding: 1rem 1rem 1.25rem;
   border-left: var(--hairline) solid var(--line);
-  background: #fcfaf7;
+  background: var(--chat-surface);
   overflow: auto;
 }
 
@@ -3367,11 +3374,11 @@ a.estimate {
 }
 
 .meter__planned {
-  background: var(--app-foreground);
+  background: #ffd261;
 }
 
 .meter__spent {
-  background: var(--brand);
+  background: var(--coral);
 }
 
 .swap-menu {

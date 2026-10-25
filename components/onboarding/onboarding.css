@@ -2,10 +2,10 @@
    folded into the panel. Builds on dashboard.css tokens and pieces. */
 
 .ob {
-  --side-bg: #f7f4ef;
-  --line: #ebe6de;
-  --urgent: #b42318;
-  --urgent-bg: #fef3f2;
+  --side-bg: var(--side-surface);
+  --line: var(--border);
+  --urgent: var(--danger);
+  --urgent-bg: var(--danger-soft);
   display: grid;
   grid-template-columns: 16rem minmax(0, 1fr);
   height: 100dvh;
@@ -65,9 +65,9 @@
 }
 
 .side__item.is-active .ob-steps__mark {
-  background: var(--primary);
+  background: var(--primary-foreground);
   box-shadow: none;
-  color: var(--primary-foreground);
+  color: var(--primary);
 }
 
 .ob-steps__mark.is-done {
@@ -95,7 +95,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  background: var(--card);
+  background: var(--canvas);
 }
 
 .ob-crumbs__progress {

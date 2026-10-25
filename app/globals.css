@@ -1,26 +1,32 @@
-/* Comeda: a 1:1 copy of the Sprout visual system (layout and motion mirror meetdex.ai), in pizza-box yellow and orange. */
+/* Comeda: bright food-dashboard colour system — sunny yellow, coral accents and clean neutral surfaces. */
 
 :root {
-  --background: #fcfaf6;
-  --foreground: #0a0a0a;
+  --background: #f7f7f5;
+  --foreground: #27231f;
   --card: #ffffff;
-  --primary: #14110d;
-  --primary-foreground: #fafafa;
-  --muted: #f3eee6;
-  --muted-foreground: #737373;
-  --border: #e9e3d9;
+  --primary: #ffb703;
+  --primary-foreground: #282117;
+  --muted: #f1f1ee;
+  --muted-foreground: #73716c;
+  --border: #e9e7e2;
 
-  /* Brand amber from the logo; the darker shade keeps small text at 4.5:1. */
-  --brand: #f59e0b;
-  --brand-text: #b45309;
+  /* Primary yellow from the reference; the dark amber keeps small text accessible on white. */
+  --brand: #ffb703;
+  --brand-text: #8a5500;
 
-  /* Product mockup surfaces: a light tint of the brand yellow. */
-  --app-background: #fff6e5;
-  --app-foreground: #fde4b4;
+  /* Supporting surfaces and the reference's secondary coral data colour. */
+  --app-background: #fff7e6;
+  --app-foreground: #ffe1a0;
+  --canvas: #f7f7f5;
+  --side-surface: #ffffff;
+  --chat-surface: #fafaf8;
+  --coral: #f05252;
+  --danger: #c43d43;
+  --danger-soft: #fff0f0;
 
   /* Halftone inks: amber for sunlit ground, near-black for shadow. */
-  --halftone-ink: #f59e0b;
-  --halftone-shadow: #1a1206;
+  --halftone-ink: #ffb703;
+  --halftone-shadow: #2b2417;
 
   --font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-logo: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
@@ -35,8 +41,8 @@
   --radius-md: 0.5rem;
   --radius-xl: 0.75rem;
 
-  --shadow-sm: inset 0 0 0 var(--hairline) var(--border), 0 3px 6px -2px rgb(0 0 0 / 0.02), 0 1px 1px 0 rgb(0 0 0 / 0.04);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-sm: inset 0 0 0 var(--hairline) var(--border), 0 8px 24px -18px rgb(91 68 18 / 0.28), 0 2px 6px -4px rgb(91 68 18 / 0.14);
+  --shadow-xl: 0 24px 50px -18px rgb(74 55 16 / 0.25), 0 10px 20px -14px rgb(74 55 16 / 0.18);
 
   --hero-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
@@ -1153,7 +1159,7 @@ canvas {
 
 .enq__error {
   margin: 0;
-  color: #b42318;
+  color: var(--danger);
   font-size: 0.875rem;
 }
 

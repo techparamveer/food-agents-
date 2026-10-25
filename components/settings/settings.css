@@ -1,8 +1,8 @@
 /* Settings dialog over the dashboard: left nav of sections, one scrolling pane. */
 
 .setd {
-  --side-bg: #f7f4ef;
-  --line: #ebe6de;
+  --side-bg: var(--side-surface);
+  --line: var(--border);
   width: min(64rem, calc(100vw - 3rem));
   max-width: none;
   height: min(48rem, calc(100dvh - 3rem));
@@ -112,12 +112,13 @@
 }
 
 .setd__tab.is-active {
-  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  background: var(--primary);
+  color: var(--primary-foreground);
   font-weight: 500;
 }
 
 .setd__tab.is-active .icon {
-  color: var(--foreground);
+  color: inherit;
 }
 
 .setd__body {
@@ -207,7 +208,7 @@
 }
 
 .set__status.is-error {
-  color: #b42318;
+  color: var(--danger);
 }
 
 .set__form:not(:has(.set__save)) {

@@ -299,8 +299,8 @@
 }
 
 .mock-pill--urgent {
-  background: #fdecea;
-  color: #b42318;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .mock-say {
