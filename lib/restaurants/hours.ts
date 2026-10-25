@@ -3,17 +3,22 @@ import type { OpeningPeriod } from "@/lib/restaurants/types";
 const WEEK = 7 * 24 * 60;
 const DAYS: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
-const londonParts = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Europe/London",
-  weekday: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
+/** Opening hours are local to the venue. Every event says its zone; OxHack's is London. */
+export const DEFAULT_TIME_ZONE = "Europe/London";
 
-/** Minutes since Sunday 00:00 in Oxford local time. */
-export function weekMinute(date: Date): number {
-  const parts = Object.fromEntries(londonParts.formatToParts(date).map((p) => [p.type, p.value]));
+const formatters = new Map<string, Intl.DateTimeFormat>();
+function zoneParts(timeZone: string) {
+  let f = formatters.get(timeZone);
+  if (!f) {
+    f = new Intl.DateTimeFormat("en-GB", { timeZone, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    formatters.set(timeZone, f);
+  }
+  return f;
+}
+
+/** Minutes since Sunday 00:00 in the venue's local time. */
+export function weekMinute(date: Date, timeZone = DEFAULT_TIME_ZONE): number {
+  const parts = Object.fromEntries(zoneParts(timeZone).formatToParts(date).map((p) => [p.type, p.value]));
   return (DAYS[parts.weekday ?? "Sun"] ?? 0) * 1440 + Number(parts.hour) * 60 + Number(parts.minute);
 }
 
@@ -21,9 +26,9 @@ export function weekMinute(date: Date): number {
  * Is the place open at `date`? Handles periods that run past midnight and Saturday→Sunday wrap.
  * Returns null when hours are unknown, so callers can decide how strict to be.
  */
-export function isOpenAt(periods: OpeningPeriod[] | undefined, date: Date): boolean | null {
+export function isOpenAt(periods: OpeningPeriod[] | undefined, date: Date, timeZone = DEFAULT_TIME_ZONE): boolean | null {
   if (!periods?.length) return null;
-  const now = weekMinute(date);
+  const now = weekMinute(date, timeZone);
   for (const { open, close } of periods) {
     if (!close) return true;
     const start = open.day * 1440 + open.minutes;

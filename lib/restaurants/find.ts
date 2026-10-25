@@ -35,6 +35,7 @@ const NO_PHOTO_TTL = HOUR;
 const DEFAULT_RADIUS = 1500;
 
 /** v2: results carry each place's first photo. */
+const placeKey = (placeId: string) => `place:v1:${placeId}`;
 const placesKey = (venue: Pick<Venue, "lat" | "lon">, radius: number) => `places:v2:${venue.lat.toFixed(4)},${venue.lon.toFixed(4)}:${radius}`;
 
 /** Upstream detail for the server log only. Users get a fixed, friendly sentence. */
@@ -90,7 +91,11 @@ export async function findRestaurants(input: FindRestaurantsInput): Promise<Find
     try {
       places = await once(placesInflight, key, async () => {
         const found = await searchNearbyRestaurants({ center: q.venue, radiusMeters: q.radiusMeters });
-        if (found.length) await cacheSet(key, found, PLACES_TTL);
+        if (found.length) {
+          await cacheSet(key, found, PLACES_TTL);
+          // Index each place too, so the photo and logo routes allow places near any event's venue.
+          await Promise.all(found.filter((p) => p.placeId).map((p) => cacheSet(placeKey(p.placeId!), p, PLACES_TTL)));
+        }
         return found;
       });
     } catch (error) {
@@ -134,8 +139,8 @@ export async function findRestaurants(input: FindRestaurantsInput): Promise<Find
 }
 
 /**
- * Image URL for a restaurant's photo, or null. Only places already in the cached search around the
- * OxHack venue qualify, so a caller can't make the server fetch (and pay for) arbitrary photos;
+ * Image URL for a restaurant's photo, or null. Only places already in a cached search (see `cachedPlace`)
+ * qualify, so a caller can't make the server fetch (and pay for) arbitrary photos;
  * this never runs a Places search itself. Each photo is fetched at most once per PHOTO_TTL.
  */
 export async function placePhotoUrl(placeId: string): Promise<string | null> {
@@ -157,9 +162,9 @@ export async function placePhotoUrl(placeId: string): Promise<string | null> {
   });
 }
 
-/** A place from the cached search around the OxHack venue, or undefined. Never runs a search:
-    routes that act on a place id use this as their allow-list. */
+/** A place from a cached search (around the OxHack venue, or any event's venue searched in the last
+    day), or undefined. Never runs a search: routes that act on a place id use this as their allow-list. */
 export async function cachedPlace(placeId: string): Promise<PlaceResult | undefined> {
   const places = await cacheGet<PlaceResult[]>(placesKey(DEFAULT_VENUE, DEFAULT_RADIUS));
-  return places?.find((p) => p.placeId === placeId);
+  return places?.find((p) => p.placeId === placeId) ?? (await cacheGet<PlaceResult>(placeKey(placeId)));
 }

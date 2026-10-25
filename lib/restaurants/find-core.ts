@@ -11,6 +11,8 @@ import { DIETARY, type Dietary, type DietaryMix, type Venue } from "@/lib/types"
 export type FindRestaurantsInput = {
   /** Where food is delivered. Defaults to the OxHack venue (Mathematical Institute, OX2 6GG). */
   venue?: Venue;
+  /** The venue's IANA timezone, for opening hours. Default Europe/London. */
+  timeZone?: string;
   /** When food must be on the table: ISO string or Date. Drives "open at slot" and `orderBy`. */
   slotTime: string | Date;
   /** People to feed. Scales prep time and `totalCost`. */
@@ -50,6 +52,7 @@ export type FindRestaurantsResult = {
 
 export type NormalisedInput = {
   venue: Venue;
+  timeZone?: string;
   slot: Date;
   headcount: number;
   maxPerHead?: number;
@@ -82,6 +85,7 @@ export function normaliseInput(input: FindRestaurantsInput): NormalisedInput {
   const max = Number(input.maxPerHead);
   return {
     venue: input.venue ?? DEFAULT_VENUE,
+    timeZone: input.timeZone,
     slot,
     headcount: clampHeadcount(input.headcount),
     maxPerHead: input.maxPerHead !== undefined && Number.isFinite(max) && max > 0 ? max : undefined,
@@ -106,6 +110,7 @@ export function finalise(
     slot: input.slot,
     source: meta.source,
     venue: input.venue,
+    timeZone: input.timeZone,
     dietaryMix: input.dietaryMix,
   });
   return {
