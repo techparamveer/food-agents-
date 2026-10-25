@@ -24,7 +24,7 @@ type ApiPlace = {
   regularOpeningHours?: { periods?: { open?: ApiPoint; close?: ApiPoint }[]; weekdayDescriptions?: string[] };
   servesVegetarianFood?: boolean;
   businessStatus?: string;
-  photos?: { name?: string; authorAttributions?: { displayName?: string; uri?: string }[] }[];
+  photos?: { name?: string; googleMapsUri?: string; authorAttributions?: { displayName?: string; uri?: string }[] }[];
 };
 
 /** The first photo with a usable resource name, and who to credit for it. */
@@ -33,7 +33,12 @@ export function photoFrom(photos: ApiPlace["photos"]): PlaceResult["photo"] {
   if (!photo?.name) return undefined;
   const author = photo.authorAttributions?.find((a) => a.displayName?.trim());
   const url = author?.uri && /^https:\/\//.test(author.uri) ? author.uri : undefined;
-  return { name: photo.name, credit: author?.displayName ? { name: author.displayName.trim(), ...(url ? { url } : {}) } : undefined };
+  const mapsUrl = photo.googleMapsUri && /^https:\/\//.test(photo.googleMapsUri) ? photo.googleMapsUri : undefined;
+  return {
+    name: photo.name,
+    ...(mapsUrl ? { mapsUrl } : {}),
+    credit: author?.displayName ? { name: author.displayName.trim(), ...(url ? { url } : {}) } : undefined,
+  };
 }
 
 const PRICE_LEVELS: Record<string, 1 | 2 | 3 | 4> = {

@@ -108,7 +108,11 @@ export function scoreRestaurants(
         mapsUrl: place.mapsUrl,
         ...(place.websiteUrl && place.placeId ? { logoUrl: `/api/restaurants/logo?place=${encodeURIComponent(place.placeId)}` } : {}),
         ...(place.photo && place.placeId
-          ? { photoUrl: `/api/restaurants/photo?place=${encodeURIComponent(place.placeId)}`, photoCredit: place.photo.credit }
+          ? {
+              photoUrl: `/api/restaurants/photo?place=${encodeURIComponent(place.placeId)}`,
+              photoMapsUrl: place.photo.mapsUrl,
+              photoCredit: place.photo.credit,
+            }
           : {}),
         color: tileColor(place.name),
         monogram: place.name.replace(/^the\s+/i, "").charAt(0).toUpperCase(),

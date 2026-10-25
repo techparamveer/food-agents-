@@ -1414,6 +1414,34 @@
   padding: 1rem 1rem 0;
 }
 
+.card__head--meal {
+  align-items: center;
+  padding-bottom: 1rem;
+}
+
+@media (max-width: 40rem) {
+  .card__head--meal {
+    display: grid;
+    grid-template-areas:
+      "image titles"
+      "image countdown";
+    grid-template-columns: 6rem minmax(0, 1fr);
+  }
+
+  .card__head--meal > .emp-tile {
+    grid-area: image;
+  }
+
+  .card__head--meal > .card__titles {
+    grid-area: titles;
+  }
+
+  .card__head--meal > .pill {
+    grid-area: countdown;
+    justify-self: start;
+  }
+}
+
 .card__titles {
   flex: 1;
   min-width: 0;
@@ -1561,6 +1589,13 @@
   font-size: 1rem;
 }
 
+.emp-tile--hero {
+  width: 6rem;
+  height: 4.5rem;
+  border-radius: var(--radius-xl);
+  font-size: 1.5rem;
+}
+
 .emp-tile--sm {
   width: 1.375rem;
   height: 1.375rem;
@@ -1579,7 +1614,12 @@
   padding: 0.1875rem;
 }
 
-.emp-tile--photo img {
+.emp-tile--hero.emp-tile--logo {
+  padding: 0.875rem;
+}
+
+.emp-tile--photo img,
+.emp-tile--asset img {
   display: block;
   width: 100%;
   height: 100%;

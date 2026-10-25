@@ -99,8 +99,12 @@ export type Restaurant = {
   mapsUrl?: string;
   /** The restaurant's logo, resolved from its website by /api/restaurants/logo. 404s when there isn't one. */
   logoUrl?: string;
+  /** A first-party meal or venue image, used by the demo and as a non-Places fallback. */
+  imageUrl?: string;
   /** A photo of the place, served through /api/restaurants/photo (the key stays on the server). */
   photoUrl?: string;
+  /** The individual source photo on Google Maps, for required source access. */
+  photoMapsUrl?: string;
   /** Who took the photo. Google requires showing this wherever the photo appears. */
   photoCredit?: { name: string; url?: string };
   /** Tile colour and letter for the UI until a logo exists. */

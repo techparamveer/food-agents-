@@ -106,9 +106,17 @@ assert.deepEqual(parsePlacesResponse({}, venue), []);
 assert.deepEqual(
   photoFrom([
     { name: "not/a/photo" },
-    { name: "places/ChIJ-x/photos/AbC_1", authorAttributions: [{ displayName: " Ana ", uri: "https://maps.google.com/maps/contrib/1" }] },
+    {
+      name: "places/ChIJ-x/photos/AbC_1",
+      googleMapsUri: "https://www.google.com/maps/reviews/data=photo-1",
+      authorAttributions: [{ displayName: " Ana ", uri: "https://maps.google.com/maps/contrib/1" }],
+    },
   ]),
-  { name: "places/ChIJ-x/photos/AbC_1", credit: { name: "Ana", url: "https://maps.google.com/maps/contrib/1" } },
+  {
+    name: "places/ChIJ-x/photos/AbC_1",
+    mapsUrl: "https://www.google.com/maps/reviews/data=photo-1",
+    credit: { name: "Ana", url: "https://maps.google.com/maps/contrib/1" },
+  },
   "first well-formed photo, with its author",
 );
 assert.deepEqual(photoFrom([{ name: "places/a/photos/b", authorAttributions: [{ displayName: "Bo", uri: "javascript:alert(1)" }] }]), {
@@ -117,13 +125,27 @@ assert.deepEqual(photoFrom([{ name: "places/a/photos/b", authorAttributions: [{ 
 }, "non-https author links are dropped");
 assert.equal(photoFrom(undefined), undefined);
 assert.equal(photoFrom([{ name: "places/a/photos/b/../../x" }]), undefined, "odd resource names are ignored");
+assert.deepEqual(photoFrom([{ name: "places/a/photos/b", googleMapsUri: "javascript:alert(1)" }]), {
+  name: "places/a/photos/b",
+  credit: undefined,
+}, "non-https photo source links are dropped");
 const [withPhoto] = parsePlacesResponse(
-  { places: [{ id: "ChIJ-p", displayName: { text: "Pho" }, location: { latitude: 51.76, longitude: -1.26 }, photos: [{ name: "places/ChIJ-p/photos/1" }] }] },
+  {
+    places: [
+      {
+        id: "ChIJ-p",
+        displayName: { text: "Pho" },
+        location: { latitude: 51.76, longitude: -1.26 },
+        photos: [{ name: "places/ChIJ-p/photos/1", googleMapsUri: "https://maps.google.com/photo/1" }],
+      },
+    ],
+  },
   venue,
 );
-assert.deepEqual(withPhoto.photo, { name: "places/ChIJ-p/photos/1", credit: undefined });
+assert.deepEqual(withPhoto.photo, { name: "places/ChIJ-p/photos/1", mapsUrl: "https://maps.google.com/photo/1", credit: undefined });
 const [ranked] = scoreRestaurants([withPhoto], new Map([[withPhoto.id, heuristicEstimates(withPhoto, 150)]]), { headcount: 150, slot: saturdayLunch, source: "live", venue });
 assert.equal(ranked.photoUrl, "/api/restaurants/photo?place=ChIJ-p", "the browser gets our route, never the photo name or key");
+assert.equal(ranked.photoMapsUrl, "https://maps.google.com/photo/1", "the browser can open the source photo on Google Maps");
 assert.ok(!JSON.stringify(ranked).includes("photos/1"));
 assert.equal(seedPlaces(venue).every((p) => !p.photo), true, "seeded places have no photo: tiles show letters");
 assert.deepEqual(parsePlacesResponse(null, venue), []);

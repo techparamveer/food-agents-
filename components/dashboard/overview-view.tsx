@@ -3,7 +3,7 @@
 import { Countdown, useLiveNow } from "@/components/dashboard/clock";
 import { clock, longDay, money, useDashboard } from "@/components/dashboard/data";
 import { Icon } from "@/components/dashboard/icon";
-import { RestaurantTile, StatusTrack } from "@/components/dashboard/parts";
+import { PhotoCredit, RestaurantTile, StatusTrack } from "@/components/dashboard/parts";
 import type { Ask } from "@/components/dashboard/planner-pane";
 import { usePlanner } from "@/components/dashboard/planner-state";
 import { budgetSummary, isPlaced } from "@/lib/plan-sync";
@@ -57,8 +57,8 @@ export function OverviewView({ onOpenOrder, onAsk }: { onOpenOrder: (orderId: st
             <h2 className="roles__heading">Next meal</h2>
             {next && nextRestaurant ? (
               <article className="card">
-                <div className="card__head">
-                  <RestaurantTile restaurant={nextRestaurant} />
+                <div className="card__head card__head--meal">
+                  <RestaurantTile restaurant={nextRestaurant} size="hero" preferPhoto />
                   <div className="card__titles">
                     <h3 className="card__role">{next.label}</h3>
                     <p className="card__company">
@@ -66,6 +66,7 @@ export function OverviewView({ onOpenOrder, onAsk }: { onOpenOrder: (orderId: st
                       <span aria-hidden="true"> · </span>
                       serves {clock(next.servesAt)} · {next.headcount} people
                     </p>
+                    <PhotoCredit restaurant={nextRestaurant} preferPhoto />
                   </div>
                   <Countdown base={now} deadline={next.servesAt} prefix="Serves in " />
                 </div>

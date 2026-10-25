@@ -51,8 +51,8 @@ export type PlaceResult = {
   hours?: string[];
   mapsUrl: string;
   websiteUrl?: string;
-  /** First Places photo: its resource name (never sent to the browser) and author. */
-  photo?: { name: string; credit?: { name: string; url?: string } };
+  /** First Places photo: its resource name (never sent to the browser), source and author. */
+  photo?: { name: string; mapsUrl?: string; credit?: { name: string; url?: string } };
   /** Dietary needs the place is known or likely to cover. */
   serves: Dietary[];
 };

@@ -20,17 +20,30 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l);
 };
 
-/** What a tile shows: the logo, else the photo, else nothing (the letter). */
-function useTileImage(r: Restaurant): { kind: "logo" | "photo"; src: string } | undefined {
+type TileImage = { kind: "logo" | "photo" | "asset"; src: string };
+
+/** What a tile shows. Meal heroes can lead with the place photo; compact tiles lead with the logo. */
+function useTileImage(r: Restaurant, preferPhoto = false): TileImage | undefined {
   useSyncExternalStore(subscribe, () => brokenVersion, () => 0);
+  if (preferPhoto && r.photoUrl && !broken.has(r.photoUrl)) return { kind: "photo", src: r.photoUrl };
+  if (preferPhoto && r.imageUrl && !broken.has(r.imageUrl)) return { kind: "asset", src: r.imageUrl };
   if (r.logoUrl && !broken.has(r.logoUrl)) return { kind: "logo", src: r.logoUrl };
   if (r.photoUrl && !broken.has(r.photoUrl)) return { kind: "photo", src: r.photoUrl };
+  if (r.imageUrl && !broken.has(r.imageUrl)) return { kind: "asset", src: r.imageUrl };
   return undefined;
 }
 
 /** The restaurant's logo, else its photo, else its coloured letter, falling back as images fail. */
-export function RestaurantTile({ restaurant, size = "md" }: { restaurant: Restaurant; size?: "sm" | "md" | "lg" }) {
-  const image = useTileImage(restaurant);
+export function RestaurantTile({
+  restaurant,
+  size = "md",
+  preferPhoto = false,
+}: {
+  restaurant: Restaurant;
+  size?: "sm" | "md" | "lg" | "hero";
+  preferPhoto?: boolean;
+}) {
+  const image = useTileImage(restaurant, preferPhoto);
   const credit = restaurant.photoCredit ? `Photo: ${restaurant.photoCredit.name} · Google Maps` : "Photo: Google Maps";
   return (
     <span
@@ -51,9 +64,10 @@ export function RestaurantTile({ restaurant, size = "md" }: { restaurant: Restau
 }
 
 /** Google requires the photographer's credit wherever a Places photo is shown, so this appears only when the tile shows the photo. */
-export function PhotoCredit({ restaurant }: { restaurant: Restaurant }) {
-  if (useTileImage(restaurant)?.kind !== "photo") return null;
+export function PhotoCredit({ restaurant, preferPhoto = false }: { restaurant: Restaurant; preferPhoto?: boolean }) {
+  if (useTileImage(restaurant, preferPhoto)?.kind !== "photo") return null;
   const who = restaurant.photoCredit;
+  const mapsUrl = restaurant.photoMapsUrl ?? restaurant.mapsUrl;
   return (
     <span className="photo-credit">
       Photo:{" "}
@@ -64,7 +78,14 @@ export function PhotoCredit({ restaurant }: { restaurant: Restaurant }) {
       ) : (
         (who?.name ?? "Google Maps contributor")
       )}{" "}
-      · Google Maps
+      ·{" "}
+      {mapsUrl ? (
+        <a href={mapsUrl} target="_blank" rel="noreferrer">
+          Google Maps
+        </a>
+      ) : (
+        "Google Maps"
+      )}
     </span>
   );
 }
