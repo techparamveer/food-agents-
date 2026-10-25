@@ -160,6 +160,18 @@ export type MealLog = {
   method: "qr" | "search";
 };
 
+/** An anonymous student's reaction to one served meal. */
+export type FoodFeedbackSentiment = "loved" | "okay" | "not_for_me";
+
+export type FoodFeedback = {
+  id: string;
+  slotId: string;
+  sentiment: FoodFeedbackSentiment;
+  /** Optional short comment collected with the reaction. */
+  comment?: string;
+  at: string;
+};
+
 export type PlanStatus = "proposed" | "approved" | "swapped";
 
 export type PlanSlot = {
@@ -189,5 +201,6 @@ export type EventData = {
   orders: Order[];
   attendees: Attendee[];
   mealLogs: MealLog[];
+  foodFeedback: FoodFeedback[];
   plan: Plan;
 };

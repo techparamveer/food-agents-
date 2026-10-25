@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Countdown, useLiveNow } from "@/components/dashboard/clock";
 import { clock, dayKey, longDay, money, useDashboard } from "@/components/dashboard/data";
+import { FoodFeedback } from "@/components/dashboard/food-feedback";
 import { Icon } from "@/components/dashboard/icon";
-import { EstimateValue, RestaurantTile, StatusTrack } from "@/components/dashboard/parts";
+import { EstimateValue, EtaBreakdown, RestaurantTile, StatusTrack } from "@/components/dashboard/parts";
 import { linesText, type Ask } from "@/components/dashboard/planner-pane";
 import { usePlanner } from "@/components/dashboard/planner-state";
 import { deadlineLine } from "@/lib/countdown";
@@ -174,6 +175,8 @@ function OrderItem({ slot, onOpenOrder, onAsk }: { slot: MealSlot; onOpenOrder: 
             {order ? `${deadlineLine(order.orderBy, slot.servesAt, slot.kind === "snack" ? "snack" : slot.kind)}.` : "Run Get it done in the planner to cost this meal."}
             {pick?.reason ? ` ${pick.reason}` : ""}
           </p>
+          {order && <EtaBreakdown restaurant={restaurant} platform={order.platform} />}
+          {order?.status === "arrived" && <FoodFeedback slotId={slot.id} />}
         </div>
         <div className="card__foot">
           {order ? <StatusTrack status={order.status} /> : <span className="card__meta">Not planned</span>}

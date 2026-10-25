@@ -5,6 +5,8 @@ import type {
   Estimate,
   Event,
   EventData,
+  FoodFeedback,
+  FoodFeedbackSentiment,
   MealLog,
   MealSlot,
   Order,
@@ -215,6 +217,49 @@ export const OXHACK_MEAL_LOGS: MealLog[] = OXHACK_ATTENDEES.slice(0, 138).map((a
   method: i % 10 === 0 ? "search" : "qr",
 }));
 
+/** Anonymous reactions to the lunch that has already arrived in the demo. */
+const feedbackBatch = (sentiment: FoodFeedbackSentiment, count: number, start: number): FoodFeedback[] =>
+  Array.from({ length: count }, (_, i) => ({
+    id: `feedback-sat-lunch-${sentiment}-${i + 1}`,
+    slotId: "sat-lunch",
+    sentiment,
+    at: new Date(Date.parse("2026-11-14T13:35:00Z") + (start + i) * 17_000).toISOString(),
+  }));
+
+export const OXHACK_FOOD_FEEDBACK: FoodFeedback[] = [
+  ...feedbackBatch("loved", 70, 0),
+  ...feedbackBatch("okay", 17, 70),
+  ...feedbackBatch("not_for_me", 5, 87),
+  {
+    id: "feedback-sat-lunch-comment-1",
+    slotId: "sat-lunch",
+    sentiment: "loved",
+    comment: "Really fresh, and the vegan option was great.",
+    at: "2026-11-14T14:06:00Z",
+  },
+  {
+    id: "feedback-sat-lunch-comment-2",
+    slotId: "sat-lunch",
+    sentiment: "loved",
+    comment: "The falafel was still crispy when it arrived.",
+    at: "2026-11-14T14:07:00Z",
+  },
+  {
+    id: "feedback-sat-lunch-comment-3",
+    slotId: "sat-lunch",
+    sentiment: "okay",
+    comment: "Tasty, but the portions were a little small.",
+    at: "2026-11-14T14:08:00Z",
+  },
+  {
+    id: "feedback-sat-lunch-comment-4",
+    slotId: "sat-lunch",
+    sentiment: "not_for_me",
+    comment: "The sauce ran out before our table got there.",
+    at: "2026-11-14T14:09:00Z",
+  },
+];
+
 const PICKS: Record<string, string> = {
   "sat-lunch": "gloucester-green-falafel",
   "sat-dinner": "high-street-noodles",
@@ -247,6 +292,7 @@ export const OXHACK: EventData = {
   orders: OXHACK_ORDERS,
   attendees: OXHACK_ATTENDEES,
   mealLogs: OXHACK_MEAL_LOGS,
+  foodFeedback: OXHACK_FOOD_FEEDBACK,
   plan: OXHACK_PLAN,
 };
 
@@ -286,6 +332,7 @@ export function oxhackForToday(now: Date | string = new Date()): EventData {
     slots,
     orders: OXHACK_ORDERS.map((order) => ({ ...order, orderBy: shift(order.orderBy) })),
     mealLogs: OXHACK_MEAL_LOGS.map((log) => ({ ...log, at: shift(log.at) })),
+    foodFeedback: OXHACK_FOOD_FEEDBACK.map((feedback) => ({ ...feedback, at: shift(feedback.at) })),
     plan: { ...OXHACK_PLAN, generatedAt: shift(OXHACK_PLAN.generatedAt) },
   };
 }

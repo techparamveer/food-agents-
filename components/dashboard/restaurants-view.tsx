@@ -358,7 +358,8 @@ function RestaurantList({
                       <span className="pick__foot">
                         <span>{money(r.totalCost)} for {slot.headcount}</span>
                         <span className="pick__eta">
-                          <span>ETA {minutes(r.etaMinutes)}</span>
+                          <span>Prep {minutes(r.prepMinutes.value)} · Delivery {minutes(r.travelMinutes.value)}</span>
+                          <span>Total ETA {minutes(r.etaMinutes)}</span>
                           <EtaWindow range={r.etaRange} />
                         </span>
                       </span>
@@ -404,7 +405,8 @@ function RestaurantList({
                           <EstText estimate={r.costPerHead} format={money} /> a head
                         </span>
                         <span className="role-row__chips">
-                          <span className="pill pill--muted">ETA {minutes(r.etaMinutes)} est.</span>
+                          <span className="pill pill--muted">Prep {minutes(r.prepMinutes.value)} est.</span>
+                          <span className="pill pill--muted">Delivery {minutes(r.travelMinutes.value)} est.</span>
                           {r.rating !== undefined && (
                             <span className="pill pill--muted">
                               <Icon name="star" />
@@ -530,9 +532,9 @@ function RestaurantDetail({
                   </span>
                 </p>
                 <p className="rcard__place">
-                  ETA {minutes(r.etaMinutes)}
+                  Total ETA {minutes(r.etaMinutes)}
                   <span>
-                    Order by {clock(r.orderBy)} for {serves} · estimate
+                    {minutes(r.prepMinutes.value)} prep + {minutes(r.travelMinutes.value)} delivery · order by {clock(r.orderBy)} for {serves}
                   </span>
                   <EtaWindow range={r.etaRange} />
                 </p>
@@ -557,7 +559,7 @@ function RestaurantDetail({
                   </dd>
                 </div>
                 <div>
-                  <dt>Travel</dt>
+                  <dt>Delivery ETA</dt>
                   <dd>
                     <EstimateValue estimate={r.travelMinutes} format={minutes} />
                   </dd>
@@ -622,7 +624,8 @@ function RestaurantDetail({
                         <EstimateValue estimate={p.fee} format={money} /> delivery
                       </span>
                       <span className="role-row__chips">
-                        <span className="pill pill--muted">ETA {minutes(p.etaMinutes)} est.</span>
+                        <span className="pill pill--muted">Prep {minutes(r.prepMinutes.value)} est.</span>
+                        <span className="pill pill--muted">Delivery {minutes(Math.max(0, p.etaMinutes - r.prepMinutes.value))} est.</span>
                       </span>
                       <EtaWindow range={r.etaRange} offset={p.etaMinutes - r.etaMinutes} />
                     </span>

@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { Countdown } from "@/components/dashboard/clock";
 import { clock, money, useDashboard } from "@/components/dashboard/data";
+import { FoodFeedback } from "@/components/dashboard/food-feedback";
 import { Icon } from "@/components/dashboard/icon";
-import { EstimateValue } from "@/components/dashboard/parts";
+import { EstimateValue, EtaBreakdown } from "@/components/dashboard/parts";
 import { linesText } from "@/components/dashboard/planner-pane";
 import { usePlanner } from "@/components/dashboard/planner-state";
 import { deadlineLine } from "@/lib/countdown";
@@ -127,6 +128,12 @@ export function OrderBuilderPane({ order, onBack }: { order: Order; onBack: () =
             </section>
 
             <section className="builder__section">
+              <p className="apply__fill-label">Preparation &amp; delivery ETA</p>
+              <EtaBreakdown restaurant={restaurant} platform={order.platform} />
+              <p className="apply__dock-note">Preparation is the restaurant&apos;s kitchen time. Delivery starts once the order is ready.</p>
+            </section>
+
+            <section className="builder__section">
               <p className="apply__fill-label">Quantities by dietary need</p>
               <ul className="apply__sheet-fields builder__lines">
                 {order.lines.map((line, i) => (
@@ -197,6 +204,12 @@ export function OrderBuilderPane({ order, onBack }: { order: Order; onBack: () =
                   {slot && slot.kind !== "lunch" && slot.kind !== "dinner" ? ` (a lighter ${meal} portion)` : ""}, plus {money(cost.fee)} delivery.
                   All figures are estimates from {restaurant.costPerHead.source.label}.
                 </p>
+              </section>
+            )}
+
+            {order.status === "arrived" && (
+              <section className="builder__section">
+                <FoodFeedback slotId={order.slotId} />
               </section>
             )}
           </div>

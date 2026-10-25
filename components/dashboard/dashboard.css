@@ -1524,6 +1524,218 @@
   line-height: 1.55;
 }
 
+.eta-breakdown {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0.875rem 0 0;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--brand) 7%, var(--card));
+  box-shadow: inset 0 0 0 var(--hairline) color-mix(in oklab, var(--brand-text) 18%, transparent);
+}
+
+.eta-breakdown > div {
+  min-width: 0;
+  padding: 0.75rem 0.875rem;
+}
+
+.eta-breakdown > div + div {
+  border-left: var(--hairline) solid color-mix(in oklab, var(--brand-text) 16%, transparent);
+}
+
+.eta-breakdown dt {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--muted-foreground);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.eta-breakdown dt .icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--brand-text);
+}
+
+.eta-breakdown dd {
+  margin: 0.25rem 0 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+@media (max-width: 31rem) {
+  .eta-breakdown {
+    grid-template-columns: 1fr;
+  }
+
+  .eta-breakdown > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .eta-breakdown > div + div {
+    border-top: var(--hairline) solid color-mix(in oklab, var(--brand-text) 16%, transparent);
+    border-left: 0;
+  }
+
+  .eta-breakdown dd {
+    margin-top: 0;
+  }
+}
+
+.food-feedback {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius-xl);
+  background: color-mix(in oklab, #e8f7ed 72%, var(--card));
+  box-shadow: inset 0 0 0 var(--hairline) color-mix(in oklab, #247846 24%, transparent);
+}
+
+.food-feedback__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.food-feedback__eyebrow {
+  color: #247846;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.food-feedback h4 {
+  margin: 0.125rem 0 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.food-feedback__meter {
+  display: flex;
+  height: 0.4375rem;
+  margin-top: 0.75rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+
+.food-feedback__meter-part--loved {
+  background: #35a362;
+}
+
+.food-feedback__meter-part--okay {
+  background: #e8b22f;
+}
+
+.food-feedback__meter-part--not_for_me {
+  background: var(--coral);
+}
+
+.food-feedback__reactions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.food-feedback__reaction {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  padding: 0.625rem 0.5rem;
+  border: var(--hairline) solid color-mix(in oklab, var(--foreground) 12%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--card) 88%, transparent);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s, transform 0.15s;
+}
+
+.food-feedback__reaction:hover,
+.food-feedback__reaction.is-added {
+  border-color: color-mix(in oklab, #247846 42%, transparent);
+  background: var(--card);
+}
+
+.food-feedback__reaction:active {
+  transform: translateY(1px);
+}
+
+.food-feedback__emoji {
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.food-feedback__reaction > span:last-child {
+  display: flex;
+  flex: 1;
+  justify-content: space-between;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.food-feedback__reaction strong {
+  overflow: hidden;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.food-feedback__reaction small {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.food-feedback__hint {
+  margin-top: 0.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.food-feedback__comments {
+  display: grid;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: var(--hairline) solid color-mix(in oklab, #247846 18%, transparent);
+}
+
+.food-feedback__comments li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  color: color-mix(in oklab, var(--foreground) 76%, transparent);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.food-feedback__comments q::before,
+.food-feedback__comments q::after {
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 36rem) {
+  .food-feedback__reactions {
+    grid-template-columns: 1fr;
+  }
+}
+
 .card__why-title {
   display: flex;
   align-items: center;

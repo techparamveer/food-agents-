@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/dashboard/icon";
-import { ORDER_STATUSES, type Estimate, type OrderStatus, type Restaurant } from "@/lib/types";
+import {
+  ORDER_STATUSES,
+  type DeliveryPlatform,
+  type Estimate,
+  type OrderStatus,
+  type Restaurant,
+} from "@/lib/types";
 
 /* Images that failed to load (no logo, expired photo), shared by every tile so a failure in the
    list isn't retried in the detail view, and the photo credit knows what the tile is showing. */
@@ -106,6 +112,52 @@ export function EstimateValue({ estimate, format }: { estimate: Estimate; format
           <span className="estimate"> est.</span>
         ))}
     </span>
+  );
+}
+
+/** Split the selected order-to-door estimate into kitchen prep and courier delivery. */
+export function EtaBreakdown({ restaurant, platform }: { restaurant: Restaurant; platform?: DeliveryPlatform }) {
+  const option = restaurant.delivery.find((delivery) => delivery.platform === platform) ?? restaurant.delivery[0];
+  const prep = Math.max(0, restaurant.prepMinutes.value);
+  const total = Math.max(prep, option?.eta.value ?? prep + restaurant.travelMinutes.value);
+  const delivery: Estimate = {
+    value: Math.max(0, total - prep),
+    source: option?.eta.source ?? restaurant.travelMinutes.source,
+    isEstimate: option?.eta.isEstimate ?? restaurant.travelMinutes.isEstimate,
+  };
+  const totalEstimate: Estimate = option
+    ? { ...option.eta, value: total }
+    : {
+        value: total,
+        source: restaurant.travelMinutes.source,
+        isEstimate: restaurant.prepMinutes.isEstimate || restaurant.travelMinutes.isEstimate,
+      };
+  const minutes = (value: number) => `${Math.round(value)} min`;
+
+  return (
+    <dl className="eta-breakdown" aria-label="Preparation and delivery estimates">
+      <div>
+        <dt>
+          <Icon name="chef" />
+          Preparation
+        </dt>
+        <dd><EstimateValue estimate={restaurant.prepMinutes} format={minutes} /></dd>
+      </div>
+      <div>
+        <dt>
+          <Icon name="truck" />
+          Delivery
+        </dt>
+        <dd><EstimateValue estimate={delivery} format={minutes} /></dd>
+      </div>
+      <div>
+        <dt>
+          <Icon name="clock" />
+          Total ETA
+        </dt>
+        <dd><EstimateValue estimate={totalEstimate} format={minutes} /></dd>
+      </div>
+    </dl>
   );
 }
 
