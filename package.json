@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start --hostname 0.0.0.0 --port 3000",
     "lint": "eslint",
-    "test": "tsx scripts/test-allowance.ts && tsx scripts/test-qr.ts",
+    "test": "for f in scripts/test-*.ts; do tsx \"$f\" || exit 1; done",
     "dev:https": "next dev --hostname 0.0.0.0 --port 3000 --experimental-https"
   },
   "dependencies": {

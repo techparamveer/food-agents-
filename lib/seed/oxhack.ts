@@ -25,12 +25,13 @@ export const OXHACK_NOW = "2026-11-14T17:05:00Z";
 export const OXHACK_EVENT: Event = {
   id: "oxhack-2026",
   name: "OxHack 2026",
+  /* OxHack '26 is held at the Mathematical Institute (Andrew Wiles Building), Radcliffe Observatory Quarter. */
   venue: {
-    name: "Oxford Town Hall",
-    address: "St Aldate's, Oxford",
-    postcode: "OX1 1BX",
-    lat: 51.7517,
-    lon: -1.2575,
+    name: "Mathematical Institute",
+    address: "Andrew Wiles Building, Woodstock Road, Oxford",
+    postcode: "OX2 6GG",
+    lat: 51.7604,
+    lon: -1.2632,
   },
   startsAt: "2026-11-14T10:00:00Z",
   endsAt: "2026-11-15T16:00:00Z",
