@@ -1,3 +1,4 @@
+import { costSlot, splitDietary } from "@/lib/planner";
 import type {
   Attendee,
   Dietary,
@@ -7,7 +8,6 @@ import type {
   MealLog,
   MealSlot,
   Order,
-  OrderLine,
   Plan,
   Restaurant,
 } from "@/lib/types";
@@ -178,39 +178,27 @@ export const OXHACK_ATTENDEES: Attendee[] = seedAttendees(OXHACK_EVENT.headcount
 const restaurantById = (id: string) => OXHACK_RESTAURANTS.find((r) => r.id === id)!;
 const slotById = (id: string) => OXHACK_SLOTS.find((s) => s.id === id)!;
 
-function linesFor(headcount: number): OrderLine[] {
-  const { dietaryMix } = OXHACK_EVENT;
-  const special = (Object.keys(dietaryMix) as Dietary[]).map((d) => ({ dietary: d, quantity: Math.round(headcount * dietaryMix[d]) }));
-  const taken = special.reduce((n, l) => n + l.quantity, 0);
-  return [{ dietary: "standard", quantity: headcount - taken }, ...special];
-}
-
-/** Order deadline: when food is served, minus prep and delivery. */
-function orderBy(servesAt: string, r: Restaurant) {
-  const minutes = r.prepMinutes.value + r.travelMinutes.value;
-  return new Date(Date.parse(servesAt) - minutes * 60_000).toISOString().replace(".000Z", "Z");
-}
-
+/** Seeded orders are costed by the planner, so they match what "Get it done" would produce. */
 function order(id: string, slotId: string, restaurantId: string, status: Order["status"]): Order {
   const s = slotById(slotId);
   const r = restaurantById(restaurantId);
-  const delivery = r.delivery[0];
+  const cost = costSlot(s, r);
   return {
     id,
     slotId,
     restaurantId,
-    platform: delivery.platform,
+    platform: cost.delivery?.platform ?? "direct",
     status,
-    lines: linesFor(s.headcount),
-    orderBy: orderBy(s.servesAt, r),
-    total: est(s.headcount * r.costPerHead.value + delivery.fee.value),
+    lines: splitDietary(s.headcount, OXHACK_EVENT.dietaryMix),
+    orderBy: cost.orderBy,
+    total: est(cost.cost),
   };
 }
 
 export const OXHACK_ORDERS: Order[] = [
-  order("ord-sat-lunch", "sat-lunch", "gloucester-green-falafel", "delivered"),
-  order("ord-sat-dinner", "sat-dinner", "high-street-noodles", "approved"),
-  order("ord-sat-midnight", "sat-midnight", "covered-market-pizza", "draft"),
+  order("ord-sat-lunch", "sat-lunch", "gloucester-green-falafel", "arrived"),
+  order("ord-sat-dinner", "sat-dinner", "high-street-noodles", "planned"),
+  order("ord-sat-midnight", "sat-midnight", "covered-market-pizza", "planned"),
 ];
 
 /** 138 of 150 collected Saturday lunch. */
@@ -237,12 +225,11 @@ export const OXHACK_PLAN: Plan = {
   slots: OXHACK_SLOTS.map((s) => ({
     slotId: s.id,
     restaurantId: PICKS[s.id],
-    status: OXHACK_ORDERS.some((o) => o.slotId === s.id && o.status !== "draft") ? "approved" : "proposed",
+    status: OXHACK_ORDERS.some((o) => o.slotId === s.id && o.status !== "planned") ? "approved" : "proposed",
   })),
   total: est(
     OXHACK_SLOTS.reduce((sum, s) => {
-      const r = restaurantById(PICKS[s.id]);
-      return sum + s.headcount * r.costPerHead.value + r.delivery[0].fee.value;
+      return sum + costSlot(s, restaurantById(PICKS[s.id])).cost;
     }, 0),
   ),
 };

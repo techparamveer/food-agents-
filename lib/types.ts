@@ -102,7 +102,15 @@ export type Restaurant = {
   monogram: string;
 };
 
-export type OrderStatus = "draft" | "approved" | "ordered" | "delivered";
+/** Set by hand: Comeda never sees the restaurant's side. */
+export type OrderStatus = "planned" | "ordered" | "out_for_delivery" | "arrived";
+
+export const ORDER_STATUSES: { id: OrderStatus; label: string }[] = [
+  { id: "planned", label: "Planned" },
+  { id: "ordered", label: "Ordered" },
+  { id: "out_for_delivery", label: "Out for delivery" },
+  { id: "arrived", label: "Arrived" },
+];
 
 export type OrderLine = {
   dietary: Dietary | "standard";
@@ -156,7 +164,7 @@ export type PlanSlot = {
 export type Plan = {
   eventId: string;
   generatedAt: string;
-  source: "seed" | "gemini";
+  source: "seed" | "planner" | "gemini";
   slots: PlanSlot[];
   total: Estimate;
 };

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DashboardProvider } from "@/components/dashboard/data";
 import { HomeScreen } from "@/components/dashboard/home-screen";
+import { PlannerProvider } from "@/components/dashboard/planner-state";
 import { isSection, isSettingsTab } from "@/lib/sections";
 import { OXHACK } from "@/lib/seed/oxhack";
 import "@/components/dashboard/dashboard.css";
@@ -23,11 +24,13 @@ export default async function DemoPage({
   const { section, settings, play } = await searchParams;
   return (
     <DashboardProvider initial={OXHACK} demo>
-      <HomeScreen
-        initialSection={typeof section === "string" && isSection(section) ? section : undefined}
-        initialSettings={isSettingsTab(settings) ? settings : undefined}
-        autoplay={play === "1"}
-      />
+      <PlannerProvider>
+        <HomeScreen
+          initialSection={typeof section === "string" && isSection(section) ? section : undefined}
+          initialSettings={isSettingsTab(settings) ? settings : undefined}
+          autoplay={play === "1"}
+        />
+      </PlannerProvider>
     </DashboardProvider>
   );
 }
