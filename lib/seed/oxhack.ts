@@ -11,6 +11,7 @@ import type {
   Plan,
   Restaurant,
 } from "@/lib/types";
+import { seedAttendees } from "@/lib/seed/attendees";
 
 /* The OxHack demo event. Restaurants are fictional stand-ins until Places results replace them,
    and every number they carry is an estimate labelled "Seed data". */
@@ -168,44 +169,9 @@ export const OXHACK_RESTAURANTS: Restaurant[] = [
   }),
 ];
 
-/* ---------- Attendees: 150 generated records with placeholder QR hashes ---------- */
+/* ---------- Attendees: 150 records with placeholder QR hashes (see lib/qr.ts) ---------- */
 
-const FIRST = ["Amara", "Ben", "Chloe", "Dev", "Ella", "Femi", "Grace", "Hamza", "Isla", "Jun", "Kai", "Leah", "Musa", "Nina", "Omar"];
-const LAST = ["Ahmed", "Brown", "Chen", "Davies", "Evans", "Fraser", "Gupta", "Hughes", "Iqbal", "Jones"];
-
-/** FNV-1a, so placeholder hashes are stable across runs. Real hashes replace these later. */
-function placeholderHash(input: string) {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return `ph_${(h >>> 0).toString(16).padStart(8, "0")}`;
-}
-
-/** Spreads the event's dietary mix over the list: 23 veg, 12 vegan, 6 halal, 5 gluten-free. */
-function dietaryFor(i: number): Dietary | undefined {
-  const r = (i * 37) % 150;
-  if (r < 23) return "veg";
-  if (r < 35) return "vegan";
-  if (r < 41) return "halal";
-  if (r < 46) return "gf";
-  return undefined;
-}
-
-export const OXHACK_ATTENDEES: Attendee[] = Array.from({ length: OXHACK_EVENT.headcount }, (_, i) => {
-  const first = FIRST[i % FIRST.length];
-  const last = LAST[Math.floor(i / FIRST.length) % LAST.length];
-  const id = `att-${String(i + 1).padStart(3, "0")}`;
-  return {
-    id,
-    name: `${first} ${last}`,
-    discordHandle: `${first}${last}`.toLowerCase(),
-    avatarUrl: `https://cdn.discordapp.com/embed/avatars/${i % 6}.png`,
-    qrHash: placeholderHash(id),
-    dietary: dietaryFor(i),
-  };
-});
+export const OXHACK_ATTENDEES: Attendee[] = seedAttendees(OXHACK_EVENT.headcount);
 
 /* ---------- Orders, meal logs and the plan ---------- */
 

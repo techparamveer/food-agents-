@@ -17,8 +17,8 @@ export function ClosingCta() {
                 <path d="m12 5 7 7-7 7" />
               </svg>
             </Link>
-            <Link className="btn btn--outline btn--lg" href="/login">
-              Organiser sign in
+            <Link className="btn btn--outline btn--lg" href="/demo?section=mealcheck">
+              See the meal check
             </Link>
           </div>
         </div>

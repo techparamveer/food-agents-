@@ -4,6 +4,7 @@ import { HomeScreen } from "@/components/dashboard/home-screen";
 import { isSection, isSettingsTab } from "@/lib/sections";
 import { OXHACK } from "@/lib/seed/oxhack";
 import "@/components/dashboard/dashboard.css";
+import "@/components/dashboard/meal-check.css";
 import "@/components/onboarding/onboarding.css";
 import "@/components/settings/settings.css";
 
