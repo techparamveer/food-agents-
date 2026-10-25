@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { checkAllowance, countEaten, defaultRules, type SlotRules } from "@/lib/allowance";
+import { checkAllowance, countEaten, defaultRules, logServing, parseRuleOverrides, parseRules, slotAt, type SlotRules } from "@/lib/allowance";
 import type { MealLog, MealSlot } from "@/lib/types";
 
 /* Meal allowance: one serving by default, seconds N minutes after the slot starts. */
@@ -108,11 +108,17 @@ assert.equal(rules.seconds, 1);
   assert.equal(check([], at("20:29")).ok, true);
 }
 
-// Zero servings blocks everyone until seconds open (odd, but it shouldn't crash).
+// Zero servings blocks everyone until seconds open (odd, but it shouldn't crash), and says so
+// without claiming they've already eaten.
 {
   const a = check([], at("18:40"), { ...rules, servings: 0 });
   assert.equal(a.ok, false);
-  assert.equal(a.reason?.code, "seconds-later");
+  assert.equal(a.reason?.code, "not-open");
+  assert.equal(a.reason?.text, "Saturday dinner opens at 19:00");
+  assert.equal(check([], at("19:00"), { ...rules, servings: 0 }).ok, true);
+  const none = check([], at("18:40"), { ...rules, servings: 0, secondsAfterMinutes: null });
+  assert.equal(none.reason?.code, "none");
+  assert.doesNotMatch(none.reason!.text, /already/i);
 }
 
 // Accepts a numeric clock too.
@@ -120,5 +126,73 @@ assert.equal(checkAllowance({ slot: dinner, rules, logs: [], attendeeId: "a", no
 
 // Snacks use their own defaults.
 assert.equal(defaultRules({ ...dinner, kind: "snack" }).secondsAfterMinutes, 20);
+
+// Serving re-checks with the clock and logs at the moment of the tap, not the card's.
+{
+  const serve = (logs: MealLog[], now: string) =>
+    logServing({ slot: dinner, rules, logs, attendeeId: "a", now, method: "qr", id: "new" });
+  const ok = serve([], at("18:40"));
+  assert.ok(ok.ok);
+  assert.deepEqual(ok.log, { id: "new", attendeeId: "a", slotId: dinner.id, at: "2026-11-14T18:40:00.000Z", method: "qr" });
+  // The card said OK, but they were served meanwhile (a double tap, or another table).
+  const twice = serve([ok.log], at("18:40"));
+  assert.equal(twice.ok, false);
+  assert.equal(!twice.ok && twice.allowance.reason?.code, "seconds-later");
+  // The card said OK at 20:29, but the table closed before the tap.
+  const late = serve([], at("20:30"));
+  assert.equal(!late.ok && late.allowance.reason?.code, "closed");
+}
+
+// The slot follows the clock, using each slot's own rules.
+{
+  const lunch: MealSlot = { ...dinner, id: "sat-lunch", label: "Saturday lunch", kind: "lunch", servesAt: at("12:30") };
+  const snack: MealSlot = { ...dinner, id: "sat-snack", label: "Saturday midnight snack", kind: "snack", servesAt: "2026-11-15T00:00:00Z" };
+  const slots = [lunch, dinner, snack];
+  const pick = (now: string, overrides?: Record<string, SlotRules>) => slotAt(slots, Date.parse(now), overrides).id;
+  assert.equal(pick(at("09:00")), "sat-lunch", "before anything: the next to open");
+  assert.equal(pick(at("13:00")), "sat-lunch", "while lunch is open");
+  assert.equal(pick(at("14:00")), "sat-dinner", "lunch closed at 14:00: on to dinner");
+  assert.equal(pick(at("18:30")), "sat-dinner");
+  assert.equal(pick(at("20:30")), "sat-snack", "dinner closed at 20:30: on to the snack");
+  assert.equal(pick("2026-11-15T03:00:00Z"), "sat-snack", "after everything: the last");
+  // Overrides move the boundaries: lunch kept open until 15:00, dinner opening an hour early.
+  const longLunch = { ...defaultRules(lunch), closesAfterMinutes: 150 };
+  assert.equal(pick(at("14:30"), { "sat-lunch": longLunch }), "sat-lunch");
+  assert.equal(pick(at("15:00"), { "sat-lunch": longLunch }), "sat-dinner");
+  const earlyDinner = { ...rules, opensBeforeMinutes: 60 };
+  assert.equal(pick(at("17:20"), { "sat-lunch": longLunch, "sat-dinner": earlyDinner }), "sat-dinner");
+}
+
+// Rules restored from storage: valid ones kept, anything malformed dropped.
+{
+  assert.deepEqual(parseRules(rules), rules);
+  assert.deepEqual(parseRules({ ...rules, secondsAfterMinutes: null }), { ...rules, secondsAfterMinutes: null });
+  for (const bad of [
+    null,
+    "rules",
+    [],
+    {},
+    { ...rules, servings: "2" },
+    { ...rules, servings: -1 },
+    { ...rules, servings: 1.5 },
+    { ...rules, servings: 99 },
+    { ...rules, secondsAfterMinutes: undefined },
+    { ...rules, secondsAfterMinutes: Number.NaN },
+    { ...rules, seconds: Infinity },
+    { ...rules, closesAfterMinutes: 0 },
+    { servings: 1 },
+  ]) {
+    assert.equal(parseRules(bad), null, JSON.stringify(bad));
+  }
+  // Extra keys are dropped rather than carried along.
+  assert.deepEqual(parseRules({ ...rules, evil: true }), rules);
+
+  const restored = parseRuleOverrides(
+    { "sat-dinner": { ...rules, servings: 2 }, "sat-lunch": { servings: "lots" }, "gone-slot": rules, __proto__: rules },
+    [dinner, { ...dinner, id: "sat-lunch" }],
+  );
+  assert.deepEqual(restored, { "sat-dinner": { ...rules, servings: 2 } });
+  for (const bad of [null, 42, "x", [rules], JSON.parse("[]")]) assert.deepEqual(parseRuleOverrides(bad, [dinner]), {});
+}
 
 console.log("allowance: all tests passed");

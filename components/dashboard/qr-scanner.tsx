@@ -12,6 +12,8 @@ type Status = "idle" | "starting" | "scanning" | "error";
 /** The same code held in front of the camera fires once, not every frame. */
 const REPEAT_MS = 2500;
 const FRAME_MS = 180;
+/** About two seconds of failed frames means the decoder is broken, not a dropped frame. */
+const MAX_FAILED_FRAMES = 12;
 
 function cameraError(error: unknown) {
   const name = error instanceof DOMException ? error.name : "";
@@ -21,10 +23,14 @@ function cameraError(error: unknown) {
   return "Couldn't start the camera.";
 }
 
+const stopTracks = (stream: MediaStream | null) => stream?.getTracks().forEach((t) => t.stop());
+
 export function QrScanner({ onScan }: { onScan: (text: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
+  /** Bumped by every stop, so a start or frame still awaiting knows it's been cancelled. */
+  const sessionRef = useRef(0);
   const lastRef = useRef<{ text: string; at: number } | null>(null);
   const onScanRef = useRef(onScan);
   const [status, setStatus] = useState<Status>("idle");
@@ -48,28 +54,42 @@ export function QrScanner({ onScan }: { onScan: (text: string) => void }) {
   };
 
   const stop = () => {
+    sessionRef.current++;
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     timerRef.current = null;
-    streamRef.current?.getTracks().forEach((t) => t.stop());
+    stopTracks(streamRef.current);
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
   };
 
   useEffect(() => stop, []);
 
-  const loop = (detector: QrDetector) => {
+  /** Turns the camera off and explains why. */
+  const fail = (text: string) => {
+    stop();
+    setStatus("error");
+    setMessage(text);
+  };
+
+  const loop = (detector: QrDetector, session: number) => {
+    let failed = 0;
     const tick = async () => {
       const video = videoRef.current;
-      if (!streamRef.current || !video) return;
+      if (session !== sessionRef.current || !video) return;
       if (video.readyState >= 2) {
         try {
           const [code] = await detector.detect(video);
-          if (code?.rawValue) emit(code.rawValue);
+          failed = 0;
+          if (session === sessionRef.current && code?.rawValue) emit(code.rawValue);
         } catch {
-          // A dropped frame; try the next one.
+          // One dropped frame is fine; a run of them means the decoder is broken.
+          if (++failed >= MAX_FAILED_FRAMES && session === sessionRef.current) {
+            fail("The QR decoder stopped working. Search by name instead.");
+            return;
+          }
         }
       }
-      if (streamRef.current) timerRef.current = window.setTimeout(tick, FRAME_MS);
+      if (session === sessionRef.current) timerRef.current = window.setTimeout(tick, FRAME_MS);
     };
     tick();
   };
@@ -80,25 +100,33 @@ export function QrScanner({ onScan }: { onScan: (text: string) => void }) {
       setMessage("The camera needs HTTPS or localhost. Search by name, or scan a photo instead.");
       return;
     }
+    stop();
+    const session = sessionRef.current;
     setStatus("starting");
     setMessage("");
+    const [decoder, media] = await Promise.allSettled([
+      createQrDetector(),
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false }),
+    ]);
+    const stream = media.status === "fulfilled" ? media.value : null;
+    // Stopped or unmounted while waiting: release the camera we just got.
+    if (session !== sessionRef.current) return stopTracks(stream);
+    if (media.status === "rejected") return fail(cameraError(media.reason));
+    streamRef.current = stream;
+    if (decoder.status === "rejected") return fail("Couldn't load the QR decoder. Search by name instead.");
+    const video = videoRef.current;
+    if (!video) return stop();
     try {
-      const [{ detector, engine }, stream] = await Promise.all([
-        createQrDetector(),
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false }),
-      ]);
-      streamRef.current = stream;
-      const video = videoRef.current!;
       video.srcObject = stream;
       await video.play();
-      setEngine(engine);
-      setStatus("scanning");
-      loop(detector);
     } catch (error) {
-      stop();
-      setStatus("error");
-      setMessage(cameraError(error));
+      if (session === sessionRef.current) fail(cameraError(error));
+      return;
     }
+    if (session !== sessionRef.current) return;
+    setEngine(decoder.value.engine);
+    setStatus("scanning");
+    loop(decoder.value.detector, session);
   };
 
   const scanPhoto = async (file: File | undefined) => {
@@ -112,14 +140,13 @@ export function QrScanner({ onScan }: { onScan: (text: string) => void }) {
       if (code?.rawValue) {
         lastRef.current = null;
         emit(code.rawValue);
-        if (status === "error") setStatus("idle");
+        setStatus((s) => (s === "error" ? "idle" : s));
       } else {
-        setStatus("error");
-        setMessage("No QR code found in that photo.");
+        // The error replaces the camera view, so the camera goes off with it.
+        fail("No QR code found in that photo.");
       }
     } catch {
-      setStatus("error");
-      setMessage("Couldn't read that photo.");
+      fail("Couldn't read that photo.");
     }
   };
 

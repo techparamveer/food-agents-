@@ -29,13 +29,18 @@ for (const a of OXHACK_ATTENDEES) {
   assert.equal(r.attendee.id, a.id);
 }
 
-// Scanners add whitespace or change case; both still resolve.
+// Scanners can add whitespace around the text; it still resolves.
 const first = OXHACK_ATTENDEES[0];
-assert.equal(hashFromPayload(`  ${first.qrHash.toUpperCase()}\n`), first.qrHash);
+assert.equal(hashFromPayload(`  ${first.qrHash}\n`), first.qrHash);
 {
-  const r = resolve(` ${first.qrHash.toUpperCase()} `);
+  const r = resolve(` ${first.qrHash} `);
   assert.ok(r.ok && r.attendee.id === first.id);
 }
+
+// Hashes compare exactly: real ones may be case-sensitive (base64, base58), so case isn't folded.
+assert.equal(hashFromPayload(first.qrHash.toUpperCase()), null);
+assert.equal(resolve(first.qrHash.toUpperCase()).ok, false);
+assert.equal(resolve(first.qrHash.replace("ph_", "PH_")).ok, false);
 
 // Well-formed but not on the list.
 {
