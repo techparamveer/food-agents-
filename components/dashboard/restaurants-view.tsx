@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { clock, money, useDashboard } from "@/components/dashboard/data";
 import { Icon } from "@/components/dashboard/icon";
-import { EstimateValue, FilterMenu, RestaurantTile } from "@/components/dashboard/parts";
+import { EstimateValue, FilterMenu, PhotoCredit, RestaurantTile } from "@/components/dashboard/parts";
 import type { Ask } from "@/components/dashboard/planner-pane";
 import { GEMINI_UNGROUNDED_LABEL, platformLabel } from "@/lib/restaurants/estimate-parse";
 import { fallbackResult, normaliseInput, type FindRestaurantsResult } from "@/lib/restaurants/find-core";
@@ -500,6 +500,7 @@ function RestaurantDetail({
                       <Icon name="external" />
                     </a>
                   </p>
+                  <PhotoCredit restaurant={r} />
                 </div>
               </div>
               <div className="rcard__facts">

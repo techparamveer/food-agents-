@@ -97,6 +97,10 @@ export type Restaurant = {
   delivery: DeliveryOption[];
   websiteUrl?: string;
   mapsUrl?: string;
+  /** A photo of the place, served through /api/restaurants/photo (the key stays on the server). */
+  photoUrl?: string;
+  /** Who took the photo. Google requires showing this wherever the photo appears. */
+  photoCredit?: { name: string; url?: string };
   /** Tile colour and letter for the UI until a logo exists. */
   color: string;
   monogram: string;

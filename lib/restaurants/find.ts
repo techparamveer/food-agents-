@@ -1,6 +1,6 @@
 import "server-only";
 import { estimateRestaurants } from "@/lib/estimates";
-import { searchNearbyRestaurants } from "@/lib/places";
+import { fetchPhotoUri, searchNearbyRestaurants } from "@/lib/places";
 import { HOUR, cacheGet, cacheSet } from "@/lib/restaurants/cache";
 import { heuristicEstimates, isGroundedEstimate } from "@/lib/restaurants/estimate-parse";
 import {
@@ -12,7 +12,9 @@ import {
   type FindRestaurantsInput,
   type FindRestaurantsResult,
 } from "@/lib/restaurants/find-core";
+import { DEFAULT_VENUE } from "@/lib/restaurants/seed";
 import type { PlaceResult, RestaurantEstimates } from "@/lib/restaurants/types";
+import type { Venue } from "@/lib/types";
 
 export type { FindRestaurantsInput, FindRestaurantsResult } from "@/lib/restaurants/find-core";
 export type { RankedRestaurant } from "@/lib/restaurants/types";
@@ -27,11 +29,20 @@ const FAILED_TTL = 10 * 60_000;
 /** Gemini is asked about the busiest places only; the rest get labelled heuristics. */
 const MAX_GROUNDED = 12;
 
+/** Photo URLs are re-fetched twice a day; places without one (or a failed fetch) are retried hourly. */
+const PHOTO_TTL = 12 * HOUR;
+const NO_PHOTO_TTL = HOUR;
+const DEFAULT_RADIUS = 1500;
+
+/** v2: results carry each place's first photo. */
+const placesKey = (venue: Pick<Venue, "lat" | "lon">, radius: number) => `places:v2:${venue.lat.toFixed(4)},${venue.lon.toFixed(4)}:${radius}`;
+
 /** Upstream detail for the server log only. Users get a fixed, friendly sentence. */
 const detail = (e: unknown) => (e instanceof Error ? e.message : String(e)).replace(/\s+/g, " ").slice(0, 300);
 
 /** One Places call and one Gemini round per key at a time, however many requests arrive together. */
 const placesInflight = new Map<string, Promise<PlaceResult[]>>();
+const photoInflight = new Map<string, Promise<string | null>>();
 const inflight = new Map<string, Promise<Map<string, RestaurantEstimates>>>();
 
 function once<T>(map: Map<string, Promise<T>>, key: string, run: () => Promise<T>): Promise<T> {
@@ -73,13 +84,13 @@ export async function findRestaurants(input: FindRestaurantsInput): Promise<Find
     return fallbackResult(q, ["Live restaurant search isn't set up here: showing seeded Oxford restaurants."]);
   }
 
-  const placesKey = `places:v1:${q.venue.lat.toFixed(4)},${q.venue.lon.toFixed(4)}:${q.radiusMeters}`;
-  let places = await cacheGet<PlaceResult[]>(placesKey);
+  const key = placesKey(q.venue, q.radiusMeters);
+  let places = await cacheGet<PlaceResult[]>(key);
   if (!places) {
     try {
-      places = await once(placesInflight, placesKey, async () => {
+      places = await once(placesInflight, key, async () => {
         const found = await searchNearbyRestaurants({ center: q.venue, radiusMeters: q.radiusMeters });
-        if (found.length) await cacheSet(placesKey, found, PLACES_TTL);
+        if (found.length) await cacheSet(key, found, PLACES_TTL);
         return found;
       });
     } catch (error) {
@@ -120,4 +131,29 @@ export async function findRestaurants(input: FindRestaurantsInput): Promise<Find
 
   const grounded = [...estimates.values()].filter(isGroundedEstimate).length;
   return finalise(q, places, estimates, { source: fetched ? "live" : "cache", grounded, warnings });
+}
+
+/**
+ * Image URL for a restaurant's photo, or null. Only places already in the cached search around the
+ * OxHack venue qualify, so a caller can't make the server fetch (and pay for) arbitrary photos;
+ * this never runs a Places search itself. Each photo is fetched at most once per PHOTO_TTL.
+ */
+export async function placePhotoUrl(placeId: string): Promise<string | null> {
+  if (!process.env.GOOGLE_PLACES_API_KEY) return null;
+  const cacheKey = `photo:v1:${placeId}`;
+  const hit = await cacheGet<{ uri: string | null }>(cacheKey);
+  if (hit) return hit.uri;
+  const places = await cacheGet<PlaceResult[]>(placesKey(DEFAULT_VENUE, DEFAULT_RADIUS));
+  const photo = places?.find((p) => p.placeId === placeId)?.photo;
+  if (!photo) return null;
+  return once(photoInflight, placeId, async () => {
+    let uri: string | null = null;
+    try {
+      uri = await fetchPhotoUri(photo.name);
+    } catch (error) {
+      console.error("[restaurants] photo failed:", detail(error));
+    }
+    await cacheSet(cacheKey, { uri }, uri ? PHOTO_TTL : NO_PHOTO_TTL);
+    return uri;
+  });
 }

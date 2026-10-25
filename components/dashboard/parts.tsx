@@ -4,10 +4,44 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/dashboard/icon";
 import { ORDER_STATUSES, type Estimate, type OrderStatus, type Restaurant } from "@/lib/types";
 
+/** The place's photo when Places has one, otherwise (or if it fails to load) its coloured letter. */
 export function RestaurantTile({ restaurant, size = "md" }: { restaurant: Restaurant; size?: "sm" | "md" | "lg" }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  const photo = restaurant.photoUrl && failed !== restaurant.photoUrl ? restaurant.photoUrl : undefined;
+  const credit = restaurant.photoCredit ? `Photo: ${restaurant.photoCredit.name} · Google Maps` : "Photo: Google Maps";
   return (
-    <span className={`emp-tile emp-tile--${size}`} style={{ background: restaurant.color }} aria-hidden="true">
-      {restaurant.monogram}
+    <span
+      className={photo ? `emp-tile emp-tile--${size} emp-tile--photo` : `emp-tile emp-tile--${size}`}
+      style={{ background: restaurant.color }}
+      title={photo ? credit : undefined}
+      aria-hidden="true"
+    >
+      {photo ? (
+        // A plain img: the route redirects to Google's CDN, so there's nothing for next/image to optimise.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={photo} alt="" loading="lazy" decoding="async" onError={() => setFailed(photo)} />
+      ) : (
+        restaurant.monogram
+      )}
+    </span>
+  );
+}
+
+/** Google requires the photographer's credit wherever a Places photo is shown in full. */
+export function PhotoCredit({ restaurant }: { restaurant: Restaurant }) {
+  if (!restaurant.photoUrl) return null;
+  const who = restaurant.photoCredit;
+  return (
+    <span className="photo-credit">
+      Photo:{" "}
+      {who?.url ? (
+        <a href={who.url} target="_blank" rel="noreferrer">
+          {who.name}
+        </a>
+      ) : (
+        (who?.name ?? "Google Maps contributor")
+      )}{" "}
+      · Google Maps
     </span>
   );
 }

@@ -32,6 +32,7 @@ export const PLACES_FIELD_MASK = [
   "places.priceRange",
   "places.regularOpeningHours",
   "places.servesVegetarianFood",
+  "places.photos",
 ].join(",");
 
 /** Places worth feeding a hackathon from (Table A types). */
@@ -80,6 +81,26 @@ export async function searchNearbyRestaurants({
     throw new Error(`Places searchNearby ${res.status}: ${detail.slice(0, 200)}`);
   }
   return parsePlacesResponse(await res.json(), center);
+}
+
+/**
+ * A photo's image URL (a key-free googleusercontent.com link) for its resource name, sized for
+ * tiles. One billed Place Photo request; throws on failure so callers can fall back.
+ * https://developers.google.com/maps/documentation/places/web-service/place-photos
+ */
+export async function fetchPhotoUri(name: string, { apiKey = process.env.GOOGLE_PLACES_API_KEY, maxWidthPx = 400 } = {}): Promise<string | null> {
+  if (!apiKey) throw new Error("GOOGLE_PLACES_API_KEY is not set");
+  const res = await fetch(`https://places.googleapis.com/v1/${name}/media?maxWidthPx=${maxWidthPx}&skipHttpRedirect=true`, {
+    headers: { "X-Goog-Api-Key": apiKey },
+    signal: AbortSignal.timeout(8_000),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Places photo ${res.status}: ${detail.slice(0, 200)}`);
+  }
+  const { photoUri } = (await res.json()) as { photoUri?: unknown };
+  return typeof photoUri === "string" && photoUri.startsWith("https://") ? photoUri : null;
 }
 
 export { mapsSearchUrl, parsePlacesResponse } from "@/lib/restaurants/parse-places";

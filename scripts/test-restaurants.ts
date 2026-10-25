@@ -11,7 +11,7 @@ import {
 import { fallbackResult, normaliseInput } from "@/lib/restaurants/find-core";
 import { bulkPrepMinutes, distanceMeters, etaMinutes, orderByTime, travelMinutes } from "@/lib/restaurants/geo";
 import { daily, describeHours, isOpenAt } from "@/lib/restaurants/hours";
-import { cuisineFrom, parsePlacesResponse, priceLevelFrom } from "@/lib/restaurants/parse-places";
+import { cuisineFrom, parsePlacesResponse, photoFrom, priceLevelFrom } from "@/lib/restaurants/parse-places";
 import { dietaryCoverage, filterRestaurants, ratingScore, scoreRestaurants, sortRestaurants } from "@/lib/restaurants/rank";
 import { DEFAULT_VENUE, seedPlaces } from "@/lib/restaurants/seed";
 import type { PlaceResult, RestaurantEstimates } from "@/lib/restaurants/types";
@@ -100,6 +100,32 @@ assert.ok(branca.distanceMeters > 200 && branca.distanceMeters < 400, `distance 
 assert.deepEqual(branca.openingPeriods, [{ open: { day: 6, minutes: 720 }, close: { day: 6, minutes: 1320 } }]);
 assert.deepEqual(branca.hours, ["Saturday: 12:00–22:00"]);
 assert.deepEqual(parsePlacesResponse({}, venue), []);
+
+/* ---------- photos ---------- */
+
+assert.deepEqual(
+  photoFrom([
+    { name: "not/a/photo" },
+    { name: "places/ChIJ-x/photos/AbC_1", authorAttributions: [{ displayName: " Ana ", uri: "https://maps.google.com/maps/contrib/1" }] },
+  ]),
+  { name: "places/ChIJ-x/photos/AbC_1", credit: { name: "Ana", url: "https://maps.google.com/maps/contrib/1" } },
+  "first well-formed photo, with its author",
+);
+assert.deepEqual(photoFrom([{ name: "places/a/photos/b", authorAttributions: [{ displayName: "Bo", uri: "javascript:alert(1)" }] }]), {
+  name: "places/a/photos/b",
+  credit: { name: "Bo" },
+}, "non-https author links are dropped");
+assert.equal(photoFrom(undefined), undefined);
+assert.equal(photoFrom([{ name: "places/a/photos/b/../../x" }]), undefined, "odd resource names are ignored");
+const [withPhoto] = parsePlacesResponse(
+  { places: [{ id: "ChIJ-p", displayName: { text: "Pho" }, location: { latitude: 51.76, longitude: -1.26 }, photos: [{ name: "places/ChIJ-p/photos/1" }] }] },
+  venue,
+);
+assert.deepEqual(withPhoto.photo, { name: "places/ChIJ-p/photos/1", credit: undefined });
+const [ranked] = scoreRestaurants([withPhoto], new Map([[withPhoto.id, heuristicEstimates(withPhoto, 150)]]), { headcount: 150, slot: saturdayLunch, source: "live", venue });
+assert.equal(ranked.photoUrl, "/api/restaurants/photo?place=ChIJ-p", "the browser gets our route, never the photo name or key");
+assert.ok(!JSON.stringify(ranked).includes("photos/1"));
+assert.equal(seedPlaces(venue).every((p) => !p.photo), true, "seeded places have no photo: tiles show letters");
 assert.deepEqual(parsePlacesResponse(null, venue), []);
 assert.equal(priceLevelFrom("PRICE_LEVEL_VERY_EXPENSIVE"), 4);
 assert.equal(priceLevelFrom("PRICE_LEVEL_FREE"), undefined);
