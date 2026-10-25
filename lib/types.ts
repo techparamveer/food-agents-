@@ -68,6 +68,8 @@ export type DeliveryOption = {
   platform: DeliveryPlatform;
   /** Where the organiser places the order. Comeda never orders itself. */
   url: string;
+  /** A specific restaurant/order page, or a platform search used when no verified listing was found. */
+  linkKind?: "restaurant" | "search";
   fee: Estimate;
   /** Minutes from order to door: prep + travel. */
   eta: Estimate;

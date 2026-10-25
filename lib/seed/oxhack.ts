@@ -74,7 +74,7 @@ const restaurant = (
     costPerHead: est(perHead),
     prepMinutes: est(prep),
     travelMinutes: est(travel),
-    delivery: [{ platform: "direct", url: rest.websiteUrl ?? "https://example.com", fee: est(fee), eta: est(prep + travel) }],
+    delivery: [{ platform: "direct", url: rest.websiteUrl ?? "https://example.com", linkKind: "restaurant", fee: est(fee), eta: est(prep + travel) }],
   };
 };
 

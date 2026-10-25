@@ -28,6 +28,8 @@ export type PlatformQuote = {
   etaMinutes: number;
   /** Listing if known, otherwise a search for it. */
   url: string;
+  /** Whether `url` is a specific restaurant page or only a platform search. */
+  linkKind: "restaurant" | "search";
 };
 
 /** Realistic order-to-door window for the Andrew Wiles Building, in minutes. */

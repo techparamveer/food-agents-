@@ -42,8 +42,18 @@ export function OrderBuilderPane({ order, onBack }: { order: Order; onBack: () =
   const meals = order.lines.reduce((n, l) => n + l.quantity, 0);
   const cost = slot ? costOrder(slot, restaurant, meals, order.platform) : undefined;
   const delivery = cost?.delivery ?? restaurant.delivery[0];
-  const link = delivery?.url ?? restaurant.websiteUrl;
+  const usesRestaurantWebsite = delivery?.linkKind === "search" && Boolean(restaurant.websiteUrl);
+  const link = usesRestaurantWebsite ? restaurant.websiteUrl : delivery?.url ?? restaurant.websiteUrl;
   const host = link ? hostOf(link) : "";
+  const platformName = delivery ? PLATFORM[delivery.platform] : undefined;
+  const orderAction =
+    delivery?.linkKind === "search"
+      ? usesRestaurantWebsite
+        ? "Open restaurant website"
+        : `Find on ${platformName}`
+      : delivery && delivery.platform !== "direct"
+        ? `Order on ${platformName}`
+        : `Order on ${host || "the restaurant's site"}`;
   const meal = slot ? (slot.kind === "snack" ? "snack" : slot.kind) : "meal";
 
   useEffect(() => {
@@ -93,13 +103,13 @@ export function OrderBuilderPane({ order, onBack }: { order: Order; onBack: () =
               </h2>
               <p className="apply__dock-note">
                 {slot ? `${deadlineLine(order.orderBy, slot.servesAt, meal)}. ` : ""}
-                Comeda never places orders: copy the quantities, order on {host || "the restaurant's site"}, then mark it ordered here.
+                Comeda never places orders: copy the quantities, open the restaurant&apos;s verified order page, then mark it ordered here.
               </p>
               <div className="apply__sheet-actions">
                 {order.status === "planned" && <Countdown base={now} deadline={order.orderBy} prefix="Order in " />}
                 {link && (
                   <a className="btn btn--primary" href={link} target="_blank" rel="noreferrer">
-                    Order on {host}
+                    {orderAction}
                     <Icon name="external" />
                   </a>
                 )}

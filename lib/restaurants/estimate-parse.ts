@@ -19,10 +19,24 @@ export function platformLabel(id: Platform) {
   return PLATFORMS.find((p) => p.id === id)!.label;
 }
 
-/** Search for the restaurant on a platform: honest when we don't know the listing URL. */
+/** Search inside the delivery platform when we don't know a verified restaurant listing URL. */
 export function platformSearchUrl(id: Platform, name: string) {
-  const site = PLATFORMS.find((p) => p.id === id)!.site;
-  return `https://www.google.com/search?q=${encodeURIComponent(`${name} Oxford site:${site}`)}`;
+  const query = encodeURIComponent(`${name} Oxford`);
+  if (id === "ubereats") return `https://www.ubereats.com/gb/search?q=${query}`;
+  if (id === "deliveroo") return `https://deliveroo.co.uk/search?fulfillment_method=DELIVERY&query=${query}`;
+  return `https://www.just-eat.co.uk/area/oxford?query=${query}`;
+}
+
+/** Only these canonical paths count as a link to a specific restaurant rather than a search/home page. */
+export function isRestaurantListingUrl(id: Platform, value: unknown): value is string {
+  if (!isHttpUrl(value)) return false;
+  const url = new URL(value);
+  const host = bareHost(url.hostname);
+  const site = PLATFORMS.find((platform) => platform.id === id)!.site;
+  if (host !== site && !host.endsWith(`.${site}`)) return false;
+  if (id === "ubereats") return /^\/(?:[a-z]{2}\/)?store\/[^/]+\/[^/]+\/?$/i.test(url.pathname);
+  if (id === "deliveroo") return /\/menu\//i.test(url.pathname);
+  return /\/menu\/?$/i.test(url.pathname);
 }
 
 const isFastCasual = (p: PlaceResult) => /pizza|burger|chicken|fast food|sandwich|noodle/i.test(`${p.cuisine} ${p.name}`);
@@ -77,6 +91,7 @@ export function heuristicEstimates(p: PlaceResult, headcount: number): Restauran
         available: flag(listed, { label: `Comeda guess: search ${label}`, url }),
         fee: est(heuristicDeliveryFee(id, p.distanceMeters), { label: `Typical ${label} fee for the distance`, url }),
         url,
+        linkKind: "search",
       };
     }),
   };
@@ -94,7 +109,7 @@ For EACH restaurant below, estimate:
 - catering: true if they offer catering, party platters, or clearly accept large group orders.
 - prepMinutes: kitchen time to prepare ${headcount} portions.
 - deliveryTimeToVenue: the realistic shortestMinutes and longestMinutes from placing the order until it reaches the Andrew Wiles Building, Woodstock Road, Oxford OX2 6GG (kitchen prep plus courier travel).
-- platforms: for "ubereats", "deliveroo", "justeat": whether the restaurant is listed, the typical delivery fee in GBP, and the listing URL if found.
+- platforms: for "ubereats", "deliveroo", "justeat": whether the restaurant is listed, the typical delivery fee in GBP, and the canonical direct restaurant listing URL if found (for example an Uber Eats /store/... URL). Never return Google search URLs or a platform home/search page as a listing.
 Each value needs a sourceUrl: a real page you used (menu, listing or catering page). Use null when unknown; never invent URLs.
 
 Restaurants:
@@ -293,12 +308,14 @@ export function parseGeminiEstimates(
       platforms: base.platforms.map((fallback) => {
         const raw = rawPlatforms.find((r) => asPlatform(r?.platform) === fallback.platform);
         if (!raw) return fallback;
+        const listing = isRestaurantListingUrl(fallback.platform, raw.url) && matchChunk(raw.url, chunks);
         return {
           platform: fallback.platform,
           available: yesNo(raw.available, raw, fallback.available),
           fee: numeric({ value: raw.deliveryFee, sourceUrl: raw.sourceUrl }, 0, 30, fallback.fee),
-          // A listing link only when Google's results for this restaurant include that site.
-          url: matchChunk(raw.url, chunks) ? (raw.url as string) : fallback.url,
+          // Keep only a canonical restaurant page backed by this restaurant's Google grounding.
+          url: listing ? (raw.url as string) : fallback.url,
+          linkKind: listing ? "restaurant" : "search",
         };
       }),
     };

@@ -5,7 +5,9 @@ import {
   extractJsonArray,
   heuristicDeliveryFee,
   heuristicEstimates,
+  isRestaurantListingUrl,
   parseGeminiEstimates,
+  platformSearchUrl,
   responseText,
 } from "@/lib/restaurants/estimate-parse";
 import { fallbackResult, normaliseInput } from "@/lib/restaurants/find-core";
@@ -209,6 +211,7 @@ const deliveroo = g.platforms.find((p) => p.platform === "deliveroo")!;
 assert.equal(deliveroo.fee.value, 2.49, "£ strings are parsed; platform labels map to ids");
 assert.deepEqual(deliveroo.fee.source, { label: GEMINI_UNGROUNDED_LABEL }, "a URL Google never returned is not a source");
 assert.equal(deliveroo.url, heuristic.platforms.find((p) => p.platform === "deliveroo")!.url, "an unverified listing link is replaced by a search");
+assert.equal(deliveroo.linkKind, "search", "an unverified page is never presented as a direct order link");
 const justEat = g.platforms.find((p) => p.platform === "justeat")!;
 assert.equal(justEat.available.value, false);
 assert.deepEqual(justEat.fee, heuristic.platforms.find((p) => p.platform === "justeat")!.fee, "out-of-range fee ignored");
@@ -240,6 +243,12 @@ assert.equal(heuristicDeliveryFee("ubereats", 1500), 1.49);
 assert.equal(heuristicDeliveryFee("deliveroo", 1500), 2.49);
 assert.equal(heuristicDeliveryFee("justeat", 1500), 2.99);
 assert.equal(heuristicDeliveryFee("ubereats", 0), 0.49, "fees never drop below 49p");
+const uberSearch = new URL(platformSearchUrl("ubereats", "Neds Noodle Bar"));
+assert.equal(uberSearch.hostname, "www.ubereats.com", "fallback discovery stays on Uber Eats instead of Google");
+assert.match(uberSearch.searchParams.get("q") ?? "", /Neds Noodle Bar Oxford/);
+assert.equal(isRestaurantListingUrl("ubereats", "https://www.ubereats.com/gb/store/neds-noodle-bar-oxford/uaoGgWlAT26_WjzBm-MiWg"), true);
+assert.equal(isRestaurantListingUrl("ubereats", platformSearchUrl("ubereats", "Neds Noodle Bar")), false, "an Uber Eats search is not an order page");
+assert.equal(isRestaurantListingUrl("ubereats", "https://deliveroo.co.uk/menu/oxford/neds"), false, "a different platform never counts");
 
 /* ---------- ranking ---------- */
 

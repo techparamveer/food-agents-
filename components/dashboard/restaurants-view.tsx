@@ -481,6 +481,7 @@ function RestaurantDetail({
   const prev = restaurants[(index - 1 + restaurants.length) % restaurants.length] ?? r;
   const listed = r.platforms.filter((p) => p.available.value).sort((a, b) => a.fee.value - b.fee.value);
   const cheapest = listed[0];
+  const directListing = listed.find((platform) => platform.linkKind === "restaurant");
   const serves = clock(slot.servesAt);
 
   return (
@@ -609,11 +610,11 @@ function RestaurantDetail({
                     <span className="role-row__text">
                       <span className="role-row__title">
                         <a href={p.url} target="_blank" rel="noreferrer">
-                          {platformLabel(p.platform)}
+                          {p.linkKind === "restaurant" ? platformLabel(p.platform) : `Find ${r.name} on ${platformLabel(p.platform)}`}
                         </a>
                       </span>
                       <span className="role-row__company">
-                        {p.available.value ? "Listed" : "Probably not listed"} ·{" "}
+                        {p.linkKind === "restaurant" ? "Specific restaurant listing" : p.available.value ? "Search this platform" : "Probably not listed"} ·{" "}
                         <a className="estimate" href={p.available.source.url} target="_blank" rel="noreferrer">
                           {p.available.source.label}
                         </a>
@@ -654,10 +655,20 @@ function RestaurantDetail({
       </div>
 
       <div className="detail__actions">
-        {cheapest ? (
-          <a className="btn btn--primary" href={cheapest.url} target="_blank" rel="noreferrer">
+        {directListing ? (
+          <a className="btn btn--primary" href={directListing.url} target="_blank" rel="noreferrer">
             <Icon name="truck" />
-            Order on {platformLabel(cheapest.platform)}
+            Order on {platformLabel(directListing.platform)}
+          </a>
+        ) : r.websiteUrl ? (
+          <a className="btn btn--primary" href={r.websiteUrl} target="_blank" rel="noreferrer">
+            <Icon name="external" />
+            Open restaurant website
+          </a>
+        ) : cheapest ? (
+          <a className="btn btn--primary" href={cheapest.url} target="_blank" rel="noreferrer">
+            <Icon name="search" />
+            Find on {platformLabel(cheapest.platform)}
           </a>
         ) : (
           <a className="btn btn--primary" href={r.websiteUrl ?? r.mapsUrl} target="_blank" rel="noreferrer">

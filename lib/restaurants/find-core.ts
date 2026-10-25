@@ -74,7 +74,7 @@ const BANDS = [50, 100, 200, 500, MAX_HEADCOUNT];
 export const headcountBand = (n: number) => BANDS.find((b) => clampHeadcount(n) <= b) ?? MAX_HEADCOUNT;
 
 /** Cache key for one restaurant's estimates. Bump the version when the estimate shape or sourcing rules change. */
-export const estimatesKey = (placeId: string, headcount: number) => `estimates:v3:${placeId}:${headcountBand(headcount)}`;
+export const estimatesKey = (placeId: string, headcount: number) => `estimates:v4:${placeId}:${headcountBand(headcount)}`;
 
 export function normaliseInput(input: FindRestaurantsInput): NormalisedInput {
   const slot = input.slotTime instanceof Date ? input.slotTime : new Date(input.slotTime);

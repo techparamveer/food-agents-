@@ -77,11 +77,18 @@ export function scoreRestaurants(
     const platforms = est.platforms.map((q) => ({ ...q, etaMinutes: eta + DISPATCH_MINUTES[q.platform] }));
     const delivery: DeliveryOption[] = platforms
       .filter((q) => q.available.value)
-      .map((q) => ({ platform: q.platform, url: q.url, fee: q.fee, eta: { value: q.etaMinutes, source: est.prepMinutes.source, isEstimate: true } }));
+      .map((q) => ({
+        platform: q.platform,
+        url: q.url,
+        linkKind: q.linkKind,
+        fee: q.fee,
+        eta: { value: q.etaMinutes, source: est.prepMinutes.source, isEstimate: true },
+      }));
     if (est.catering.value) {
       delivery.push({
         platform: "direct",
         url: place.websiteUrl ?? place.mapsUrl,
+        linkKind: "restaurant",
         fee: { value: 0, source: { label: "Collect or arrange with the restaurant", url: place.mapsUrl }, isEstimate: true },
         eta: { value: eta, source: est.prepMinutes.source, isEstimate: true },
       });

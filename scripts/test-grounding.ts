@@ -79,6 +79,7 @@ assert.deepEqual(ea.prepMinutes, { value: 40, source: { label: GEMINI_UNGROUNDED
 const roo = ea.platforms.find((p) => p.platform === "deliveroo")!;
 assert.equal(roo.fee.source.url, redirect(1));
 assert.equal(roo.url, "https://deliveroo.co.uk/menu/oxford/a", "a listing on a grounded site is kept");
+assert.equal(roo.linkKind, "restaurant", "a grounded canonical listing is safe to label as an order link");
 
 const eb = estimates.get(b.id)!;
 assert.deepEqual(eb.costPerHead.source, { label: GEMINI_SOURCE_LABEL, url: redirect(2) });
