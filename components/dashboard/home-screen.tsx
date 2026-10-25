@@ -141,7 +141,7 @@ export function HomeScreen({
         }
       : section === "mealcheck"
         ? {
-            prompt: "Check people in by name for now. I'll flag anyone collecting twice.",
+            prompt: "Scan a QR code or search by name. I'll flag anyone collecting twice before seconds open.",
             suggestions: ["How many still to eat?", "Who hasn't eaten today?"],
           }
         : first && firstSlot
