@@ -61,8 +61,9 @@ export function scoreRestaurants(
     slot,
     source,
     venue,
+    timeZone,
     dietaryMix,
-  }: { headcount: number; slot: Date; source: DataSource; venue: LatLon; dietaryMix?: DietaryMix },
+  }: { headcount: number; slot: Date; source: DataSource; venue: LatLon; timeZone?: string; dietaryMix?: DietaryMix },
 ): RankedRestaurant[] {
   const rows = places.flatMap((place): RankedRestaurant[] => {
     const est = estimates.get(place.id);
@@ -118,7 +119,7 @@ export function scoreRestaurants(
         etaMinutes: eta,
         orderBy: orderByTime(slot, eta).toISOString(),
         totalCost: Math.round(est.costPerHead.value * headcount * 100) / 100,
-        openAtSlot: isOpenAt(place.openingPeriods, slot),
+        openAtSlot: isOpenAt(place.openingPeriods, slot, timeZone),
         score: 0,
         source,
       },

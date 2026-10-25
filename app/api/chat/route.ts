@@ -1,5 +1,6 @@
 import { sanitizeHistory } from "@/lib/chat-history";
 import { clientIp, createRateLimiter, tooManyRequests } from "@/lib/rate-limit";
+import { eventContext } from "@/lib/server/event-context";
 import { foodChatStream, replySigner, type ChatState } from "@/lib/server/food-chat";
 
 /* Each message can cost up to three Gemini calls, so: a few messages a minute per visitor, and a
@@ -30,8 +31,8 @@ async function readCapped(request: Request, max: number): Promise<string | null>
   return new TextDecoder().decode(Buffer.concat(chunks));
 }
 
-/** POST { message, history?, state? } → newline-delimited JSON events (see lib/server/food-chat.ts).
-    The demo has no sign-in, so this only ever plans the seeded OxHack event. */
+/** POST { message, history?, state?, eventId? } → newline-delimited JSON events (see lib/server/food-chat.ts).
+    Without `eventId` it plans the seeded OxHack demo (no sign-in); with one, that event for its members (else 404). */
 export async function POST(request: Request) {
   const mine = perIp.hit(clientIp(request.headers));
   if (!mine.ok) return tooManyRequests(mine, "That's a lot of questions at once. Give it a minute and try again.");
@@ -40,13 +41,16 @@ export async function POST(request: Request) {
 
   const raw = await readCapped(request, MAX_BODY_BYTES).catch(() => "");
   if (raw === null) return Response.json({ error: "Request too large" }, { status: 413 });
-  let body: { message?: unknown; history?: unknown; state?: Record<string, unknown> } | null = null;
+  let body: { message?: unknown; history?: unknown; state?: Record<string, unknown>; eventId?: unknown } | null = null;
   try {
     body = JSON.parse(raw);
   } catch {}
   const message = typeof body?.message === "string" ? body.message.trim() : "";
   if (!message) return Response.json({ error: "message is required" }, { status: 400 });
   if (message.length > 2000) return Response.json({ error: "message is too long (2,000 characters max)" }, { status: 400 });
+
+  const ctx = await eventContext(typeof body?.eventId === "string" ? body.eventId : null);
+  if (!ctx) return Response.json({ error: "Event not found" }, { status: 404 });
 
   // Only the server's own signed replies count as assistant turns.
   const history = sanitizeHistory(body?.history, replySigner.verify);
@@ -58,7 +62,7 @@ export async function POST(request: Request) {
       ? { spent: s.spent as number, planned: s.planned as number, budget: s.budget as number, left: s.left as number }
       : undefined;
 
-  return new Response(foodChatStream(message, history, state), {
+  return new Response(foodChatStream(message, history, state, ctx), {
     headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no" },
   });
 }

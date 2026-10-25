@@ -6,9 +6,9 @@ import { looksLikePlanRequest, parseFoodRequest, plannerInputFor, type FoodReque
 import { planMeals, proposeSlots, type MealPlan } from "@/lib/planner";
 import { searchForSlots, setRestaurantSearch, type SearchInfo } from "@/lib/restaurant-search";
 import { findRestaurants } from "@/lib/restaurants/find";
-import { OXHACK_EVENT, OXHACK_NOW } from "@/lib/seed/oxhack";
+import { DEMO_CONTEXT, type EventContext } from "@/lib/server/event-context";
 import { generate, geminiModel, hasGeminiKey, type FunctionDeclaration, type GeminiContent, type GeminiPart } from "@/lib/server/gemini";
-import { DIETARY, type Dietary, type Restaurant } from "@/lib/types";
+import { DIETARY, type Dietary, type Event, type Restaurant } from "@/lib/types";
 
 /* One food-planner chat turn, streamed as newline-delimited JSON:
      {"type":"tool", name, label}             a tool started
@@ -80,8 +80,8 @@ const TOOLS: FunctionDeclaration[] = [
   },
 ];
 
-const SYSTEM = `You are Comeda, a food planner for hackathon organisers running ${OXHACK_EVENT.name} at ${OXHACK_EVENT.venue.name}.
-The event runs ${OXHACK_EVENT.startsAt} to ${OXHACK_EVENT.endsAt} (UTC) for ${OXHACK_EVENT.headcount} people with a £${OXHACK_EVENT.budget} food budget.
+const systemFor = (event: Event) => `You are Comeda, a food planner for hackathon organisers running ${event.name} at ${event.venue.name}.
+The event runs ${event.startsAt} to ${event.endsAt} (UTC) for ${event.headcount} people with a £${event.budget} food budget.
 Call plan_meals for any request to feed people, and find_restaurants to compare places. Never do arithmetic yourself and never
 invent prices, times or restaurants: every number you mention must come from a tool result, and costs are estimates.
 Comeda never places orders; the organiser orders through the restaurant's link in the Order builder.
@@ -109,12 +109,12 @@ function requestFromArgs(args: Record<string, unknown>): FoodRequest {
   };
 }
 
-async function runPlan(req: FoodRequest) {
-  const base = plannerInputFor(req, OXHACK_EVENT, OXHACK_NOW);
+async function runPlan(req: FoodRequest, { event, now }: EventContext) {
+  const base = plannerInputFor(req, event, now);
   // One search prices every meal; each meal only uses places open at its time.
   // No hard dietary filter: the planner prices menu gaps and explains them.
   const found = await searchForSlots(
-    { venue: OXHACK_EVENT.venue, headcount: base.headcount, dietaryMix: base.dietaryMix },
+    { venue: event.venue, timeZone: event.timeZone, headcount: base.headcount, dietaryMix: base.dietaryMix },
     base.slots ?? proposeSlots(base),
   );
   const { restaurants, openAt, ...search } = found;
@@ -124,15 +124,16 @@ async function runPlan(req: FoodRequest) {
   return { plan, restaurants: used };
 }
 
-async function runSearch(args: Record<string, unknown>): Promise<{ restaurants: Restaurant[]; search: SearchInfo }> {
+async function runSearch(args: Record<string, unknown>, { event, now }: EventContext): Promise<{ restaurants: Restaurant[]; search: SearchInfo }> {
   const req = requestFromArgs(args);
   const dietary = Array.isArray(args.dietary) ? args.dietary.filter((d): d is Dietary => DIETARY.some((x) => x.id === d)) : [];
-  const input = plannerInputFor({ ...req, by: req.by ?? "18:30" }, OXHACK_EVENT, OXHACK_NOW);
+  const input = plannerInputFor({ ...req, by: req.by ?? "18:30" }, event, now);
   const slot = input.slots?.[0];
   const found = await searchForSlots(
     {
-      venue: OXHACK_EVENT.venue,
-      headcount: req.headcount ?? OXHACK_EVENT.headcount,
+      venue: event.venue,
+      timeZone: event.timeZone,
+      headcount: req.headcount ?? event.headcount,
       maxPerHead: typeof args.maxPerHead === "number" ? args.maxPerHead : undefined,
       dietary,
     },
@@ -218,7 +219,8 @@ function narrateBudget(state: ChatState | undefined) {
 const HELP =
   'Tell me who to feed and I\'ll plan it, e.g. "feed 150, 20 vegan, by 7pm under £600", or "plan the whole weekend". I can also compare restaurants near the venue.';
 
-export function foodChatStream(message: string, history: ChatTurn[], state?: ChatState): ReadableStream<Uint8Array> {
+export function foodChatStream(message: string, history: ChatTurn[], state?: ChatState, ctx: EventContext = DEMO_CONTEXT): ReadableStream<Uint8Array> {
+  const SYSTEM = systemFor(ctx.event);
   const encoder = new TextEncoder();
   return new ReadableStream({
     async start(controller) {
@@ -233,13 +235,13 @@ export function foodChatStream(message: string, history: ChatTurn[], state?: Cha
         const req = parseFoodRequest(message);
         if (SEARCH.test(message) && !req.by && !req.wholeEvent) {
           send({ type: "tool", name: "find_restaurants", label: "Restaurant search" });
-          const { restaurants, search } = await runSearch({ headcount: req.headcount, dietary: req.mentions });
+          const { restaurants, search } = await runSearch({ headcount: req.headcount, dietary: req.mentions }, ctx);
           send({ type: "restaurants", restaurants, search });
           return finish(narrateRestaurants(restaurants, req.mentions));
         }
         if (!looksLikePlanRequest(req)) return finish(BUDGET.test(message) ? narrateBudget(state) : HELP);
         send({ type: "tool", name: "plan_meals", label: "Meal plan" });
-        const { plan, restaurants } = await runPlan(req);
+        const { plan, restaurants } = await runPlan(req, ctx);
         send({ type: "plan", plan, restaurants });
         return finish(narratePlan(plan, restaurants));
       };
@@ -290,13 +292,13 @@ export function foodChatStream(message: string, history: ChatTurn[], state?: Cha
                   dietaryShares: typed.dietaryShares,
                   wholeEvent: typed.wholeEvent || fromModel.wholeEvent,
                 };
-                const { plan, restaurants } = await runPlan(req);
+                const { plan, restaurants } = await runPlan(req, ctx);
                 send({ type: "plan", plan, restaurants });
                 told = narratePlan(plan, restaurants);
                 responses.push({ functionResponse: { name: call.name, response: planForModel(plan, restaurants) } });
               } else if (call.name === "find_restaurants") {
                 send({ type: "tool", name: "find_restaurants", label: "Restaurant search" });
-                const { restaurants, search } = await runSearch(args);
+                const { restaurants, search } = await runSearch(args, ctx);
                 send({ type: "restaurants", restaurants, search });
                 told = narrateRestaurants(restaurants);
                 responses.push({

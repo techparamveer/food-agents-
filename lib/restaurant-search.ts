@@ -11,6 +11,8 @@ import type { Dietary, DietaryMix, MealSlot, Restaurant, Venue } from "@/lib/typ
 
 export type RestaurantQuery = {
   venue: Venue;
+  /** The venue's IANA timezone, for opening hours. Default Europe/London. */
+  timeZone?: string;
   /** ISO time food must arrive by. */
   slotTime: string;
   headcount: number;
@@ -78,11 +80,15 @@ export async function searchRestaurants(query: RestaurantQuery): Promise<Restaur
  * Restaurants open for each slot. A kitchen has to be open when the food leaves it, at serving
  * time minus travel; places with unknown hours count as open (the seed has none).
  */
-export function openAtSlots(restaurants: (Restaurant & { openingPeriods?: OpeningPeriod[] })[], slots: MealSlot[]): Record<string, string[]> {
+export function openAtSlots(
+  restaurants: (Restaurant & { openingPeriods?: OpeningPeriod[] })[],
+  slots: MealSlot[],
+  timeZone?: string,
+): Record<string, string[]> {
   return Object.fromEntries(
     slots.map((slot) => {
       const serves = Date.parse(slot.servesAt);
-      const open = restaurants.filter((r) => isOpenAt(r.openingPeriods, new Date(serves - r.travelMinutes.value * 60_000)) !== false);
+      const open = restaurants.filter((r) => isOpenAt(r.openingPeriods, new Date(serves - r.travelMinutes.value * 60_000), timeZone) !== false);
       return [slot.id, open.map((r) => r.id)];
     }),
   );
@@ -103,7 +109,7 @@ export async function searchForSlots(
   const slotTime = slots[0]?.servesAt ?? new Date().toISOString();
   const done = (restaurants: Restaurant[], meta: Required<SearchMeta>): SlotSearch => ({
     restaurants,
-    openAt: openAtSlots(restaurants, slots),
+    openAt: openAtSlots(restaurants, slots, query.timeZone),
     count: restaurants.length,
     ...meta,
   });

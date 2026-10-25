@@ -15,6 +15,8 @@ npm run dev                           # http://localhost:3000 and http://localho
 ```
 
 Keys are optional: without them every view falls back to the seeded OxHack data, and says so.
+The organiser backend (Supabase: events, teams, plans, orders, attendees, meal check) is described in
+[`docs/BACKEND.md`](docs/BACKEND.md); `/demo` never touches it.
 With keys, "Get it done", the chat and the Restaurants view all plan from live Places results. The public
 routes are rate limited per IP (30 searches and 10 chat messages a minute; 60 chat messages a minute in total)
 and the headcount is clamped to 1,000, so the cache bounds the upstream calls. Set `COMEDA_CHAT_SECRET` in
@@ -22,6 +24,7 @@ production so signed chat history survives restarts.
 `.env.example` lists the variables (`GOOGLE_PLACES_API_KEY`, `GEMINI_API_KEY`).
 
 Before pushing: `npm run lint && npm test && npm run build`. Tests are plain `scripts/test-*.ts` files run with tsx.
+`npm run test:db` runs the RLS and RPC checks against the linked Supabase project (in a transaction that rolls back).
 
 To test the meal check camera on a phone, run `npm run dev:https` and open the Network URL
 (browsers only allow the camera over HTTPS or on localhost). Print `/demo/qr-sheet` or open it on a
@@ -60,4 +63,12 @@ second screen to scan real codes.
 | `components/dashboard/order-builder-pane.tsx` | Order builder: quantities by dietary need, link out |
 | `components/dashboard/data.tsx` | `DashboardProvider`, `useDashboard()` and formatting helpers |
 | `lib/types.ts` | Shared domain types |
+| `supabase/migrations/` | Schema, RLS, Realtime and RPCs (see `docs/BACKEND.md`) |
+| `supabase/tests/rls_test.sql` | RLS and RPC checks: organisers can't see each other's events, staff can't edit orders |
+| `lib/db/` | Typed repositories over Supabase, row ↔ domain mappers, CSV import, request checks |
+| `lib/supabase/database.types.ts` | Generated types (`npm run db:types`) |
+| `lib/server/api.ts` | Auth and error handling for the signed-in `/api/events/…` routes |
+| `app/api/events/` | Events, team, plan, orders, slots, attendees, meal serve/undo |
+| `app/auth/actions.ts`, `app/auth/confirm/route.ts` | Magic-link sign-in, sign-out, link landing (claims staff invites) |
+| `scripts/seed-oxhack.ts` | Loads OxHack into the database for an organiser (`npm run seed:oxhack -- you@x.com --apply`) |
 | `lib/seed/oxhack.ts` | Seeded OxHack event |

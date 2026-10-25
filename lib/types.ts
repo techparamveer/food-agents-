@@ -45,6 +45,10 @@ export type Event = {
   /** Total food budget in pounds. */
   budget: number;
   dietaryMix: DietaryMix;
+  /** IANA timezone of the venue. Absent means Europe/London (the demo). */
+  timeZone?: string;
+  /** ISO 4217 code of the budget. Absent means GBP. */
+  currency?: string;
 };
 
 export type MealKind = "breakfast" | "lunch" | "dinner" | "snack";
@@ -142,9 +146,10 @@ export type Attendee = {
   name: string;
   discordHandle: string;
   avatarUrl: string;
-  /** What the attendee's QR code encodes. Placeholder format until real hashes land. */
+  /** What the attendee's QR code encodes (see lib/qr.ts). */
   qrHash: string;
   dietary?: Dietary;
+  email?: string;
 };
 
 /** One meal collected at the food table. */
@@ -154,6 +159,8 @@ export type MealLog = {
   slotId: string;
   at: string;
   method: "qr" | "search";
+  /** Who served it (a user id). Only set for logs from the database. */
+  servedBy?: string;
 };
 
 export type PlanStatus = "proposed" | "approved" | "swapped";
@@ -168,6 +175,10 @@ export type PlanSlot = {
 
 /** The planner's proposal: a restaurant per slot, kept under budget. */
 export type Plan = {
+  /** Set once saved to the database. */
+  id?: string;
+  /** Database plans are drafts until approved. */
+  status?: "draft" | "approved";
   eventId: string;
   generatedAt: string;
   source: "seed" | "planner" | "gemini";

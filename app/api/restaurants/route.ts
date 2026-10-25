@@ -2,7 +2,7 @@ import { clientIp, createRateLimiter, tooManyRequests } from "@/lib/rate-limit";
 import { findRestaurants } from "@/lib/restaurants/find";
 import { clampHeadcount } from "@/lib/restaurants/find-core";
 import type { SortKey } from "@/lib/restaurants/rank";
-import { OXHACK_EVENT } from "@/lib/seed/oxhack";
+import { eventContext } from "@/lib/server/event-context";
 import type { Dietary } from "@/lib/types";
 
 /** Gemini grounding on a cold cache can take a while; everything after that is cached. */
@@ -18,9 +18,10 @@ const perIp = createRateLimiter({ limit: 30, windowMs: 60_000 });
 /**
  * GET /api/restaurants?slot=2026-11-14T18:30:00Z&headcount=150&maxPerHead=8&dietary=vegan&cuisine=Pizza&open=0&sort=cost
  *
- * All parameters are optional. Defaults: the OxHack venue and headcount, slot = now,
- * open-at-slot filter on. Headcount is clamped to 1–1,000. Always 200 with a result (seeded
- * fallback if APIs fail), except 400 for an unparseable `slot` and 429 when rate limited.
+ * All parameters are optional. `eventId` plans for that event (signed-in members only, else 404):
+ * its venue, timezone, headcount and dietary mix. Without it: the OxHack demo event. Other defaults:
+ * slot = now, open-at-slot filter on. Headcount is clamped to 1–1,000. Always 200 with a result (seeded
+ * fallback if APIs fail), except 400 for an unparseable `slot`, 404 for an unknown event and 429 when rate limited.
  */
 export async function GET(request: Request) {
   const limit = perIp.hit(clientIp(request.headers));
@@ -28,13 +29,18 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const sort = params.get("sort") as SortKey | null;
   const maxPerHead = Number(params.get("maxPerHead"));
+  const ctx = await eventContext(params.get("eventId"));
+  if (!ctx) return Response.json({ error: "Event not found" }, { status: 404 });
+  const { event } = ctx;
   try {
     const result = await findRestaurants({
+      venue: event.venue,
+      timeZone: event.timeZone,
       slotTime: params.get("slot") ?? new Date(),
-      headcount: clampHeadcount(Number(params.get("headcount")) || OXHACK_EVENT.headcount),
+      headcount: clampHeadcount(Number(params.get("headcount")) || event.headcount),
       maxPerHead: maxPerHead > 0 ? maxPerHead : undefined,
       dietary: params.getAll("dietary") as Dietary[],
-      dietaryMix: params.get("mix") === "0" ? undefined : OXHACK_EVENT.dietaryMix,
+      dietaryMix: params.get("mix") === "0" ? undefined : event.dietaryMix,
       cuisines: params.getAll("cuisine").map((c) => c.slice(0, 40)).slice(0, 10),
       openAtSlot: params.get("open") !== "0",
       sort: sort && SORTS.includes(sort) ? sort : "best",

@@ -2,8 +2,9 @@ import type { Attendee } from "@/lib/types";
 
 /* The one place that knows what an attendee QR code contains.
 
-   Format (placeholder, v0): the QR text is the attendee's `qrHash`, verbatim.
-   Placeholder hashes are `ph_` + 8 lowercase hex digits: FNV-1a of the attendee id.
+   Format: the QR text is the attendee's `qrHash`, verbatim. Two kinds exist:
+   - placeholder hashes, `ph_` + 8 lowercase hex digits: FNV-1a of the attendee id (the seed, the demo);
+   - database hashes, `q_` + 32 random lowercase hex digits (the `attendees.qr_hash` default).
 
    Swapping in real hashes:
    1. Set each attendee's `qrHash` to the real value (seed or database). Nothing else stores hashes.
@@ -11,8 +12,8 @@ import type { Attendee } from "@/lib/types";
    3. If the real hashes look different, change `HASH_PATTERN` so malformed scans are still caught.
    `payloadFor` must stay the inverse of `hashFromPayload`, so the demo QR sheet keeps scanning. */
 
-/** What a valid hash looks like. Placeholder hashes only, for now. */
-export const HASH_PATTERN = /^ph_[0-9a-f]{8}$/;
+/** What a valid hash looks like: a placeholder or a database hash. */
+export const HASH_PATTERN = /^(?:ph_[0-9a-f]{8}|q_[0-9a-f]{32})$/;
 
 /** FNV-1a, so placeholder hashes are stable across runs. */
 export function placeholderHash(attendeeId: string) {

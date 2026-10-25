@@ -3,8 +3,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { safePath } from "@/lib/safe-path";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/supabase/env";
 
-/* Organiser-only routes. Empty while the demo is the only dashboard; add paths as auth lands. */
-const PROTECTED: string[] = [];
+/* Organiser-only pages: signed-out visitors go to /login?next=… . API routes check auth themselves
+   (lib/server/api.ts) and answer 401 instead of redirecting. */
+export const PROTECTED = ["/app", "/events"];
+
+/** Where a signed-in organiser lands when no `next` is given. The demo until the events screens exist. */
+export const AFTER_SIGN_IN = "/demo";
 
 /** Refreshes the auth session on every request and sends signed-out visitors to /login. */
 export async function updateSession(request: NextRequest) {
@@ -41,7 +45,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
   if (signedIn && path === "/login") {
-    const next = safePath(request.nextUrl.searchParams.get("next"), "/demo");
+    const next = safePath(request.nextUrl.searchParams.get("next"), AFTER_SIGN_IN);
     return NextResponse.redirect(new URL(next, request.url));
   }
   return response;
