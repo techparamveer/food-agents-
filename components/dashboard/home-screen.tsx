@@ -89,7 +89,32 @@ export function HomeScreen({
   const [menuOpen, setMenuOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(true);
   const [mobileChat, setMobileChat] = useState(false);
+  const [chatClosing, setChatClosing] = useState(false);
+  const hideTimer = useRef<number | null>(null);
   const checklistDismissed = useSyncExternalStore(checklistStore.subscribe, checklistStore.get, () => false);
+
+  useEffect(() => {
+    return () => {
+      if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    };
+  }, []);
+
+  const finishHidingChat = () => {
+    setChatOpen(false);
+    setMobileChat(false);
+    setChatClosing(false);
+    hideTimer.current = null;
+  };
+
+  const hideChat = () => {
+    if (chatClosing) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      finishHidingChat();
+      return;
+    }
+    setChatClosing(true);
+    hideTimer.current = window.setTimeout(finishHidingChat, 340);
+  };
 
   // The planner registers its API on mount; asks made while it's hidden wait until it opens.
   const plannerApi = useRef<PlannerApi | null>(null);
@@ -168,6 +193,7 @@ export function HomeScreen({
       data-menu-open={menuOpen || undefined}
       data-chat={chatOpen ? "open" : "closed"}
       data-mobile-chat={mobileChat || undefined}
+      data-chat-closing={chatClosing || undefined}
     >
       <div className="shell-mobilebar">
         <button
@@ -348,15 +374,14 @@ export function HomeScreen({
       </aside>
 
       {chatOpen ? (
-        <PlannerPane
-          context={context}
-          autoplay={autoplay}
-          onReady={onPlannerReady}
-          onHide={() => {
-            setChatOpen(false);
-            setMobileChat(false);
-          }}
-        />
+        <div className="chat-viewport">
+          <PlannerPane
+            context={context}
+            autoplay={autoplay}
+            onReady={onPlannerReady}
+            onHide={hideChat}
+          />
+        </div>
       ) : (
         <button type="button" className="chat-rail" onClick={() => setChatOpen(true)} aria-label="Show the Comeda planner">
           <Icon name="pizza" className="icon--brand" />
