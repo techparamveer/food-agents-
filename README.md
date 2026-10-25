@@ -14,7 +14,11 @@ cp ~/.config/comeda/env .env.local   # real keys; never commit them
 npm run dev                           # http://localhost:3000 and http://localhost:3000/demo
 ```
 
-Keys are optional: without them every view falls back to the seeded OxHack data.
+Keys are optional: without them every view falls back to the seeded OxHack data, and says so.
+With keys, "Get it done", the chat and the Restaurants view all plan from live Places results. The public
+routes are rate limited per IP (30 searches and 10 chat messages a minute; 60 chat messages a minute in total)
+and the headcount is clamped to 1,000, so the cache bounds the upstream calls. Set `COMEDA_CHAT_SECRET` in
+production so signed chat history survives restarts.
 `.env.example` lists the variables (`GOOGLE_PLACES_API_KEY`, `GEMINI_API_KEY`).
 
 Before pushing: `npm run lint && npm test && npm run build`. Tests are plain `scripts/test-*.ts` files run with tsx.
@@ -46,7 +50,12 @@ second screen to scan real codes.
 | `lib/planner.ts` | Deterministic planner: meal slots, dietary split, restaurant picks, budget fitting |
 | `lib/countdown.ts` | Order-by = serving time − prep − delivery, and live countdown labels |
 | `lib/plan-sync.ts` | Writes a plan into the event: stable slot ids, placed orders left alone |
-| `lib/restaurant-search.ts` | Adapter over `findRestaurants` (defaults to seeded data until wired to live search) |
+| `lib/restaurant-search.ts` | Adapter over `findRestaurants`: one search per plan, opening hours checked per slot, seeded fallback labelled as such |
+| `lib/restaurants/find.ts` | Live search: Places + Gemini estimates, cached (Places 24 h; estimates 72 h grounded, 12 h otherwise, per headcount band) |
+| `app/api/restaurants/photo/route.ts` | Restaurant photos: redirects to the Places photo (key stays server-side, only cached places, each photo fetched at most twice a day) |
+| `app/api/restaurants/logo/route.ts` | Restaurant logos: the site's own large icon, else Google's favicon service (≥64 px), cached a week; tiles fall back to the photo, then the letter |
+| `lib/rate-limit.ts` | Per-IP in-memory rate limits for `/api/restaurants` and `/api/chat` |
+| `lib/chat-history.ts` | Chat history the browser can't forge: assistant turns must carry the server's signature |
 | `lib/server/food-chat.ts` | Chat turn: Gemini picks tools and narrates, the planner does the maths |
 | `components/dashboard/order-builder-pane.tsx` | Order builder: quantities by dietary need, link out |
 | `components/dashboard/data.tsx` | `DashboardProvider`, `useDashboard()` and formatting helpers |

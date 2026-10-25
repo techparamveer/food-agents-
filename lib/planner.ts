@@ -1,8 +1,10 @@
 import { orderBy } from "@/lib/countdown";
-import { iso, londonDay, londonInstant, nextDay } from "@/lib/london-time";
+import type { SearchInfo } from "@/lib/restaurant-search";
+import { iso, londonClock, londonDay, londonInstant, nextDay } from "@/lib/london-time";
 import {
   DIETARY,
   type DeliveryOption,
+  type DeliveryPlatform,
   type Dietary,
   type DietaryMix,
   type MealKind,
@@ -28,8 +30,24 @@ export type PlannerInput = {
   dietaryCounts?: Partial<Record<Dietary, number>>;
   /** Plan exactly these slots instead of generating them from the dates. */
   slots?: MealSlot[];
-  /** Slots already ordered: slot id → restaurant id. Kept as they are and counted in the budget. */
-  fixed?: Record<string, string>;
+  /** Slots already ordered: slot id → restaurant id, or the order itself. Always kept locked, even
+      when the restaurant isn't in this search's results, and counted at the order's real total. */
+  fixed?: Record<string, string | FixedOrder>;
+  /** Restaurants open for each slot: slot id → restaurant ids. Slots not listed may use any restaurant;
+      when none of a slot's restaurants is open the planner uses them all and says so. */
+  openAt?: Record<string, string[]>;
+};
+
+/** A placed order as the planner needs it. Missing fields are costed from the restaurant. */
+export type FixedOrder = {
+  restaurantId: string;
+  /** Shown when the restaurant isn't in the search results. */
+  restaurantName?: string;
+  /** What the order really costs, in pounds. */
+  total?: number;
+  lines?: OrderLine[];
+  orderBy?: string;
+  platform?: DeliveryPlatform;
 };
 
 export type Alternative = {
@@ -68,6 +86,8 @@ export type MealPlan = {
   fits: boolean;
   /** Plan-wide trade-offs, plain sentences. */
   notes: string[];
+  /** Where the restaurants came from. Set by the caller that searched; the planner never fetches. */
+  search?: SearchInfo;
 };
 
 /* ---------- Slots ---------- */
@@ -184,11 +204,20 @@ function missingFor(r: Restaurant, wanted: Dietary[]) {
   return wanted.filter((d) => !r.serves.includes(d));
 }
 
-/** Restaurants worth considering for a slot. Breakfast sticks to cafés and bakeries when there are any. */
-function candidatesFor(slot: MealSlot, restaurants: Restaurant[]) {
-  if (slot.kind !== "breakfast") return restaurants;
-  const morning = restaurants.filter((r) => BREAKFAST.test(r.cuisine) || BREAKFAST.test(r.name));
-  return morning.length ? morning : restaurants;
+/** Restaurants open for a slot, or every restaurant when the slot has no list or nothing on it is open. */
+function openFor(slot: MealSlot, restaurants: Restaurant[], openAt?: PlannerInput["openAt"]) {
+  const listed = openAt?.[slot.id];
+  if (!listed) return { open: restaurants, noneOpen: false };
+  const open = restaurants.filter((r) => listed.includes(r.id));
+  return open.length ? { open, noneOpen: false } : { open: restaurants, noneOpen: true };
+}
+
+/** Restaurants worth considering for a slot: open at the time, and for breakfast, cafés and bakeries when there are any. */
+function candidatesFor(slot: MealSlot, restaurants: Restaurant[], openAt?: PlannerInput["openAt"]) {
+  const { open } = openFor(slot, restaurants, openAt);
+  if (slot.kind !== "breakfast") return open;
+  const morning = open.filter((r) => BREAKFAST.test(r.cuisine) || BREAKFAST.test(r.name));
+  return morning.length ? morning : open;
 }
 
 /** How much worse than its price a pick feels: repeats, gaps in the menu, low ratings. In pounds. */
@@ -215,14 +244,14 @@ function buildSlot(
   restaurants: Restaurant[],
   others: { slot: MealSlot; r: Restaurant }[],
   status: PlanStatus,
-  locked = false,
+  openAt?: PlannerInput["openAt"],
 ): SlotPlan {
   const c = costSlot(slot, r);
   const wanted = needs(lines);
   const missing = missingFor(r, wanted);
   const usedBy = (id: string) => others.filter((o) => o.r.id === id).map((o) => o.slot.label);
 
-  const pool = candidatesFor(slot, restaurants)
+  const pool = candidatesFor(slot, restaurants, openAt)
     .map((x) => ({ r: x, cost: costSlot(slot, x).cost, missing: missingFor(x, wanted) }))
     .sort((a, b) => a.cost - b.cost || byId(a.r, b.r));
   const alternatives: Alternative[] = pool
@@ -240,8 +269,7 @@ function buildSlot(
   const covered = pool.filter((x) => x.missing.length === 0);
   const cheapest = covered[0] ?? pool[0];
   let reason: string;
-  if (locked) reason = `Already ordered from ${r.name}.`;
-  else if (status === "swapped") reason = `You picked ${r.name}.`;
+  if (status === "swapped") reason = `You picked ${r.name}.`;
   else if (!cheapest || cheapest.r.id === r.id)
     reason = missing.length ? `Cheapest option, est. ${gbp(c.cost)}.` : `Cheapest option covering every dietary need, est. ${gbp(c.cost)}.`;
   else {
@@ -258,66 +286,111 @@ function buildSlot(
             : `Rated ${r.rating ?? "?"}★ against ${cheapest.r.rating ?? "?"}★ for ${saved} more.`;
   }
   if (missing.length) reason += ` Menu doesn't list ${missing.map(label).join(", ")}; sort those separately.`;
+  if (openFor(slot, restaurants, openAt).noneOpen)
+    reason += ` Nothing nearby is listed as open at ${londonClock(slot.servesAt)}, so order ahead and hold it.`;
 
-  return { slot, restaurantId: r.id, ...c, lines, status, locked, missing, reason, alternatives };
+  return { slot, restaurantId: r.id, ...c, lines, status, locked: false, missing, reason, alternatives };
 }
+
+/** An order that's already placed: its real restaurant, lines and total, whatever the search found. */
+function lockedSlot(slot: MealSlot, order: FixedOrder, r: Restaurant | undefined, lines: OrderLine[]): SlotPlan {
+  const own = order.lines ?? lines;
+  const c = r ? costOrder(slot, r, own.reduce((n, l) => n + l.quantity, 0), order.platform) : undefined;
+  const cost = round2(order.total ?? c?.cost ?? 0);
+  const fee = Math.min(cost, c?.fee ?? 0);
+  return {
+    slot,
+    restaurantId: order.restaurantId,
+    delivery: c?.delivery,
+    lines: own,
+    food: round2(cost - fee),
+    fee,
+    cost,
+    orderBy: order.orderBy ?? c?.orderBy ?? slot.servesAt,
+    status: "approved",
+    locked: true,
+    missing: r ? missingFor(r, needs(own)) : [],
+    reason: `Already ordered from ${r?.name ?? order.restaurantName ?? "the restaurant"}.`,
+    alternatives: [],
+  };
+}
+
+/** People as a whole number; anything that isn't a positive number is nobody. */
+const people = (n: unknown) => {
+  const v = Math.round(Number(n));
+  return Number.isFinite(v) && v > 0 ? v : 0;
+};
 
 const label = (d: Dietary) => DIETARY.find((x) => x.id === d)!.label.toLowerCase();
 
+/** Budget in pounds; anything that isn't a non-negative number is £0. */
+const pounds = (n: unknown) => {
+  const v = Number(n);
+  return Number.isFinite(v) && v > 0 ? v : 0;
+};
+
 function totals(input: PlannerInput, slots: SlotPlan[]): Omit<MealPlan, "input" | "slots"> {
+  const budget = pounds(input.budget);
   const total = round2(slots.reduce((sum, s) => sum + s.cost, 0));
-  const remaining = round2(input.budget - total);
-  const fits = total <= input.budget + 1e-9;
+  const remaining = round2(budget - total);
+  const fits = total <= budget + 1e-9;
   const notes: string[] = [];
-  if (!slots.length) notes.push("No meals fall inside these dates. Check the start and end times.");
+  const meals = slots.reduce((sum, s) => sum + s.lines.reduce((n, l) => n + l.quantity, 0), 0);
+  if (!slots.length)
+    notes.push(people(input.headcount) ? "No meals fall inside these dates. Check the start and end times." : "Add how many people you're feeding to plan meals.");
   else if (fits) {
-    const meals = slots.reduce((sum, s) => sum + s.slot.headcount, 0);
-    notes.push(`${gbp(total)} of ${gbp(input.budget)} across ${slots.length} meals, about £${(total / Math.max(1, meals)).toFixed(2)} a head per meal.`);
+    notes.push(`${gbp(total)} of ${gbp(budget)} across ${slots.length} meals${meals ? `, about £${(total / meals).toFixed(2)} a head per meal` : ""}.`);
     notes.push(`${gbp(remaining)} left for drinks, snacks and surprises.`);
   } else notes.push(`Over budget by ${gbp(-remaining)} even with the cheapest options. Drop a meal or raise the budget.`);
   const gaps = slots.filter((s) => s.missing.length);
   if (gaps.length) notes.push(`${gaps.map((s) => s.slot.label).join(", ")} can't cover every dietary need from one restaurant.`);
-  return { total, budget: input.budget, remaining, fits, notes };
+  return { total, budget, remaining, fits, notes };
 }
 
 /** Builds the plan: greedy picks in slot order, then cheaper swaps until it fits the budget. */
 export function planMeals(input: PlannerInput, restaurants: Restaurant[]): MealPlan {
-  const slots = input.slots ?? proposeSlots(input);
   const pool = [...restaurants].sort(byId);
-  if (!pool.length) return { input, slots: [], ...totals(input, []) };
+  const fixed = (id: string): FixedOrder | undefined => {
+    const f = input.fixed?.[id];
+    return typeof f === "string" ? { restaurantId: f } : f;
+  };
+  const headcount = people(input.headcount);
+  // Nobody to feed (or no restaurants) plans nothing new, but placed orders always stay.
+  const slots = (input.slots ?? (headcount ? proposeSlots({ ...input, headcount }) : []))
+    .map((s) => ({ ...s, headcount: people(s.headcount) }))
+    .filter((s) => fixed(s.id) || (s.headcount > 0 && pool.length > 0));
+  const { openAt } = input;
 
   const lines = slots.map((s) => splitDietary(s.headcount, input.dietaryMix, input.dietaryCounts));
   const wanted = lines.map(needs);
-  const picks: Restaurant[] = [];
+  const fixedAt = slots.map((s) => fixed(s.id));
+  const picks: (Restaurant | undefined)[] = slots.map((_, i) => fixedAt[i] && pool.find((r) => r.id === fixedAt[i]!.restaurantId));
+  const lockedCost = slots.map((s, i) => (fixedAt[i] ? lockedSlot(s, fixedAt[i]!, picks[i], lines[i]).cost : 0));
 
-  const scoreAt = (i: number, r: Restaurant, current: Restaurant[]) => {
-    const others = current.map((x, j) => ({ slot: slots[j], r: x })).filter((_, j) => j !== i && current[j]);
+  const scoreAt = (i: number, r: Restaurant, current: (Restaurant | undefined)[]) => {
+    const others = current.flatMap((x, j) => (j !== i && x ? [{ slot: slots[j], r: x }] : []));
     const cost = costSlot(slots[i], r).cost;
     return { cost, pen: penalty(slots[i], r, cost, wanted[i], others) };
   };
 
-  const fixedAt = slots.map((s) => pool.find((r) => r.id === input.fixed?.[s.id]));
-
   // 1. Greedy, in time order: cheapest once repeats and menu gaps are priced in. Ordered slots stay put.
   slots.forEach((_, i) => {
-    if (fixedAt[i]) {
-      picks[i] = fixedAt[i]!;
-      return;
-    }
-    const ranked = candidatesFor(slots[i], pool)
+    if (fixedAt[i]) return;
+    const ranked = candidatesFor(slots[i], pool, openAt)
       .map((r) => ({ r, ...scoreAt(i, r, picks) }))
       .sort((a, b) => a.cost + a.pen - (b.cost + b.pen) || byId(a.r, b.r));
     picks[i] = ranked[0].r;
   });
 
   // 2. Over budget: make the swap that gives up the least per pound saved, until it fits.
-  const total = () => picks.reduce((sum, r, i) => sum + costSlot(slots[i], r).cost, 0);
-  for (let guard = 0; total() > input.budget && guard < 100; guard++) {
+  const budget = pounds(input.budget);
+  const total = () => picks.reduce((sum, r, i) => sum + (fixedAt[i] ? lockedCost[i] : costSlot(slots[i], r!).cost), 0);
+  for (let guard = 0; total() > budget && guard < 100; guard++) {
     let best: { i: number; r: Restaurant; rate: number; saving: number } | undefined;
     slots.forEach((_, i) => {
       if (fixedAt[i]) return;
-      const now = scoreAt(i, picks[i], picks);
-      for (const r of candidatesFor(slots[i], pool)) {
+      const now = scoreAt(i, picks[i]!, picks);
+      for (const r of candidatesFor(slots[i], pool, openAt)) {
         const alt = scoreAt(i, r, picks);
         const saving = now.cost - alt.cost;
         if (saving <= 0.005) continue;
@@ -330,10 +403,9 @@ export function planMeals(input: PlannerInput, restaurants: Restaurant[]): MealP
   }
 
   const planned = slots.map((slot, i) => {
-    const others = picks.map((r, j) => ({ slot: slots[j], r })).filter((_, j) => j !== i);
-    return fixedAt[i]
-      ? buildSlot(slot, picks[i], lines[i], pool, others, "approved", true)
-      : buildSlot(slot, picks[i], lines[i], pool, others, "proposed");
+    if (fixedAt[i]) return lockedSlot(slot, fixedAt[i]!, picks[i], lines[i]);
+    const others = picks.flatMap((r, j) => (j !== i && r ? [{ slot: slots[j], r }] : []));
+    return buildSlot(slot, picks[i]!, lines[i], pool, others, "proposed", openAt);
   });
   return { input, slots: planned, ...totals(input, planned) };
 }
@@ -343,9 +415,11 @@ export function swapRestaurant(plan: MealPlan, slotId: string, restaurantId: str
   const r = restaurants.find((x) => x.id === restaurantId);
   const at = plan.slots.findIndex((s) => s.slot.id === slotId);
   if (!r || at < 0 || plan.slots[at].locked) return plan;
-  const find = (id: string) => restaurants.find((x) => x.id === id)!;
-  const others = plan.slots.filter((_, j) => j !== at).map((s) => ({ slot: s.slot, r: find(s.restaurantId) }));
-  const slots = plan.slots.map((s, j) => (j === at ? buildSlot(s.slot, r, s.lines, restaurants, others, "swapped") : s));
+  const others = plan.slots.flatMap((s, j) => {
+    const x = restaurants.find((y) => y.id === s.restaurantId);
+    return j !== at && x ? [{ slot: s.slot, r: x }] : [];
+  });
+  const slots = plan.slots.map((s, j) => (j === at ? buildSlot(s.slot, r, s.lines, restaurants, others, "swapped", plan.input.openAt) : s));
   return { ...plan, slots, ...totals(plan.input, slots) };
 }
 

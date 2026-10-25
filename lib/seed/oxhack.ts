@@ -1,7 +1,6 @@
 import { costSlot, splitDietary } from "@/lib/planner";
 import type {
   Attendee,
-  Dietary,
   Estimate,
   Event,
   EventData,

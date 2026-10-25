@@ -1,13 +1,70 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/dashboard/icon";
 import { ORDER_STATUSES, type Estimate, type OrderStatus, type Restaurant } from "@/lib/types";
 
+/* Images that failed to load (no logo, expired photo), shared by every tile so a failure in the
+   list isn't retried in the detail view, and the photo credit knows what the tile is showing. */
+const broken = new Set<string>();
+const listeners = new Set<() => void>();
+let brokenVersion = 0;
+const markBroken = (url: string) => {
+  if (broken.has(url)) return;
+  broken.add(url);
+  brokenVersion++;
+  listeners.forEach((l) => l());
+};
+const subscribe = (l: () => void) => {
+  listeners.add(l);
+  return () => listeners.delete(l);
+};
+
+/** What a tile shows: the logo, else the photo, else nothing (the letter). */
+function useTileImage(r: Restaurant): { kind: "logo" | "photo"; src: string } | undefined {
+  useSyncExternalStore(subscribe, () => brokenVersion, () => 0);
+  if (r.logoUrl && !broken.has(r.logoUrl)) return { kind: "logo", src: r.logoUrl };
+  if (r.photoUrl && !broken.has(r.photoUrl)) return { kind: "photo", src: r.photoUrl };
+  return undefined;
+}
+
+/** The restaurant's logo, else its photo, else its coloured letter, falling back as images fail. */
 export function RestaurantTile({ restaurant, size = "md" }: { restaurant: Restaurant; size?: "sm" | "md" | "lg" }) {
+  const image = useTileImage(restaurant);
+  const credit = restaurant.photoCredit ? `Photo: ${restaurant.photoCredit.name} · Google Maps` : "Photo: Google Maps";
   return (
-    <span className={`emp-tile emp-tile--${size}`} style={{ background: restaurant.color }} aria-hidden="true">
-      {restaurant.monogram}
+    <span
+      className={image ? `emp-tile emp-tile--${size} emp-tile--${image.kind}` : `emp-tile emp-tile--${size}`}
+      style={image?.kind === "logo" ? undefined : { background: restaurant.color }}
+      title={image?.kind === "photo" ? credit : undefined}
+      aria-hidden="true"
+    >
+      {image ? (
+        // A plain img: the routes redirect to the restaurant's site or Google's CDN; nothing for next/image to optimise.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={image.src} src={image.src} alt="" loading="lazy" decoding="async" onError={() => markBroken(image.src)} />
+      ) : (
+        restaurant.monogram
+      )}
+    </span>
+  );
+}
+
+/** Google requires the photographer's credit wherever a Places photo is shown, so this appears only when the tile shows the photo. */
+export function PhotoCredit({ restaurant }: { restaurant: Restaurant }) {
+  if (useTileImage(restaurant)?.kind !== "photo") return null;
+  const who = restaurant.photoCredit;
+  return (
+    <span className="photo-credit">
+      Photo:{" "}
+      {who?.url ? (
+        <a href={who.url} target="_blank" rel="noreferrer">
+          {who.name}
+        </a>
+      ) : (
+        (who?.name ?? "Google Maps contributor")
+      )}{" "}
+      · Google Maps
     </span>
   );
 }

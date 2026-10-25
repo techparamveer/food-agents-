@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   GEMINI_SOURCE_LABEL,
+  GEMINI_UNGROUNDED_LABEL,
   extractJsonArray,
   heuristicDeliveryFee,
   heuristicEstimates,
@@ -10,7 +11,7 @@ import {
 import { fallbackResult, normaliseInput } from "@/lib/restaurants/find-core";
 import { bulkPrepMinutes, distanceMeters, etaMinutes, orderByTime, travelMinutes } from "@/lib/restaurants/geo";
 import { daily, describeHours, isOpenAt } from "@/lib/restaurants/hours";
-import { cuisineFrom, parsePlacesResponse, priceLevelFrom } from "@/lib/restaurants/parse-places";
+import { cuisineFrom, parsePlacesResponse, photoFrom, priceLevelFrom } from "@/lib/restaurants/parse-places";
 import { dietaryCoverage, filterRestaurants, ratingScore, scoreRestaurants, sortRestaurants } from "@/lib/restaurants/rank";
 import { DEFAULT_VENUE, seedPlaces } from "@/lib/restaurants/seed";
 import type { PlaceResult, RestaurantEstimates } from "@/lib/restaurants/types";
@@ -99,6 +100,32 @@ assert.ok(branca.distanceMeters > 200 && branca.distanceMeters < 400, `distance 
 assert.deepEqual(branca.openingPeriods, [{ open: { day: 6, minutes: 720 }, close: { day: 6, minutes: 1320 } }]);
 assert.deepEqual(branca.hours, ["Saturday: 12:00–22:00"]);
 assert.deepEqual(parsePlacesResponse({}, venue), []);
+
+/* ---------- photos ---------- */
+
+assert.deepEqual(
+  photoFrom([
+    { name: "not/a/photo" },
+    { name: "places/ChIJ-x/photos/AbC_1", authorAttributions: [{ displayName: " Ana ", uri: "https://maps.google.com/maps/contrib/1" }] },
+  ]),
+  { name: "places/ChIJ-x/photos/AbC_1", credit: { name: "Ana", url: "https://maps.google.com/maps/contrib/1" } },
+  "first well-formed photo, with its author",
+);
+assert.deepEqual(photoFrom([{ name: "places/a/photos/b", authorAttributions: [{ displayName: "Bo", uri: "javascript:alert(1)" }] }]), {
+  name: "places/a/photos/b",
+  credit: { name: "Bo" },
+}, "non-https author links are dropped");
+assert.equal(photoFrom(undefined), undefined);
+assert.equal(photoFrom([{ name: "places/a/photos/b/../../x" }]), undefined, "odd resource names are ignored");
+const [withPhoto] = parsePlacesResponse(
+  { places: [{ id: "ChIJ-p", displayName: { text: "Pho" }, location: { latitude: 51.76, longitude: -1.26 }, photos: [{ name: "places/ChIJ-p/photos/1" }] }] },
+  venue,
+);
+assert.deepEqual(withPhoto.photo, { name: "places/ChIJ-p/photos/1", credit: undefined });
+const [ranked] = scoreRestaurants([withPhoto], new Map([[withPhoto.id, heuristicEstimates(withPhoto, 150)]]), { headcount: 150, slot: saturdayLunch, source: "live", venue });
+assert.equal(ranked.photoUrl, "/api/restaurants/photo?place=ChIJ-p", "the browser gets our route, never the photo name or key");
+assert.ok(!JSON.stringify(ranked).includes("photos/1"));
+assert.equal(seedPlaces(venue).every((p) => !p.photo), true, "seeded places have no photo: tiles show letters");
 assert.deepEqual(parsePlacesResponse(null, venue), []);
 assert.equal(priceLevelFrom("PRICE_LEVEL_VERY_EXPENSIVE"), 4);
 assert.equal(priceLevelFrom("PRICE_LEVEL_FREE"), undefined);
@@ -126,6 +153,7 @@ const geminiBody = {
       },
       groundingMetadata: {
         groundingChunks: [{ web: { uri: "https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc", title: "branca.co.uk" } }],
+        groundingSupports: [{ segment: { partIndex: 1, text: '"costPerHead":{"value":11.5' }, groundingChunkIndices: [0] }],
       },
     },
   ],
@@ -135,19 +163,24 @@ assert.equal(extractJsonArray("no json here"), null);
 assert.equal(extractJsonArray("[not json"), null);
 assert.deepEqual(extractJsonArray("prefix [1, 2] suffix"), [1, 2]);
 
+const heuristic = heuristicEstimates(branca, 150);
 const { estimates: gem, grounded } = parseGeminiEstimates(geminiBody, parsed, 150);
 assert.equal(grounded, 1);
 const g = gem.get(branca.id)!;
 assert.equal(g.costPerHead.value, 11.5);
-assert.deepEqual(g.costPerHead.source, { label: GEMINI_SOURCE_LABEL, url: "https://branca.co.uk/menu" });
+assert.deepEqual(
+  g.costPerHead.source,
+  { label: GEMINI_SOURCE_LABEL, url: "https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc" },
+  "a page on a site Google returned for this restaurant is sourced to Google's chunk",
+);
 assert.equal(g.costPerHead.isEstimate, true);
 assert.equal(g.catering.value, true);
 assert.ok(g.catering.source.url!.includes("grounding-api-redirect"), "null sourceUrl falls back to the grounding chunk");
-const heuristic = heuristicEstimates(branca, 150);
 assert.deepEqual(g.prepMinutes, heuristic.prepMinutes, "bad number falls back to heuristic");
 const deliveroo = g.platforms.find((p) => p.platform === "deliveroo")!;
 assert.equal(deliveroo.fee.value, 2.49, "£ strings are parsed; platform labels map to ids");
-assert.equal(deliveroo.url, "https://deliveroo.co.uk/menu/oxford/jericho/branca");
+assert.deepEqual(deliveroo.fee.source, { label: GEMINI_UNGROUNDED_LABEL }, "a URL Google never returned is not a source");
+assert.equal(deliveroo.url, heuristic.platforms.find((p) => p.platform === "deliveroo")!.url, "an unverified listing link is replaced by a search");
 const justEat = g.platforms.find((p) => p.platform === "justeat")!;
 assert.equal(justEat.available.value, false);
 assert.deepEqual(justEat.fee, heuristic.platforms.find((p) => p.platform === "justeat")!.fee, "out-of-range fee ignored");
@@ -162,11 +195,17 @@ const unsourced = parseGeminiEstimates(
   parsed,
   150,
 );
-assert.deepEqual(unsourced.estimates.get(branca.id)!.costPerHead, heuristic.costPerHead, "no source anywhere → not trusted");
+assert.deepEqual(
+  unsourced.estimates.get(branca.id)!.costPerHead,
+  { value: 9, source: { label: GEMINI_UNGROUNDED_LABEL }, isEstimate: true },
+  "no grounding at all → Gemini's number, labelled ungrounded, with no link",
+);
+assert.equal(unsourced.grounded, 0);
 
 for (const value of [g.costPerHead, g.catering, g.prepMinutes, ...g.platforms.flatMap((p) => [p.available, p.fee])]) {
   assert.equal(value.isEstimate, true);
-  assert.match(value.source.url ?? "", /^https?:\/\//);
+  if (value.source.label === GEMINI_UNGROUNDED_LABEL) assert.equal(value.source.url, undefined);
+  else assert.match(value.source.url ?? "", /^https?:\/\//);
 }
 
 assert.equal(heuristicDeliveryFee("ubereats", 1500), 1.49);

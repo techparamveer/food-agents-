@@ -10,7 +10,16 @@ assert.deepEqual(form, { headcount: 150, budget: 5000, startsAt: OXHACK.event.st
 
 const input = plannerInput(OXHACK, form);
 assert.deepEqual(input.slots!.map((s) => s.id), OXHACK.slots.map((s) => s.id), "seeded slot ids survive, so meal logs still match");
-assert.deepEqual(input.fixed, { "sat-lunch": "gloucester-green-falafel" }, "lunch has arrived, so it's fixed");
+const lunchOrder = OXHACK.orders.find((o) => o.slotId === "sat-lunch")!;
+assert.deepEqual(Object.keys(input.fixed!), ["sat-lunch"], "lunch has arrived, so it's fixed");
+assert.deepEqual(input.fixed!["sat-lunch"], {
+  restaurantId: "gloucester-green-falafel",
+  restaurantName: OXHACK.restaurants.find((r) => r.id === "gloucester-green-falafel")!.name,
+  total: lunchOrder.total.value,
+  lines: lunchOrder.lines,
+  orderBy: lunchOrder.orderBy,
+  platform: lunchOrder.platform,
+}, "the fixed slot carries the real order");
 
 const plan = planMeals(input, OXHACK.restaurants);
 const next = applyPlan(OXHACK, plan, OXHACK.now);

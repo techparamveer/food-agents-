@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { clock, money, useDashboard } from "@/components/dashboard/data";
 import { Icon } from "@/components/dashboard/icon";
-import { EstimateValue, FilterMenu, RestaurantTile } from "@/components/dashboard/parts";
+import { EstimateValue, FilterMenu, PhotoCredit, RestaurantTile } from "@/components/dashboard/parts";
 import type { Ask } from "@/components/dashboard/planner-pane";
-import { platformLabel } from "@/lib/restaurants/estimate-parse";
+import { GEMINI_UNGROUNDED_LABEL, platformLabel } from "@/lib/restaurants/estimate-parse";
 import { fallbackResult, normaliseInput, type FindRestaurantsResult } from "@/lib/restaurants/find-core";
 import { filterRestaurants, sortRestaurants, type SortKey } from "@/lib/restaurants/rank";
 import type { RankedRestaurant } from "@/lib/restaurants/types";
@@ -420,6 +420,7 @@ function RestaurantList({
 }
 
 function SourceNote({ result }: { result: FindRestaurantsResult }) {
+  const unverified = result.restaurants.filter((r) => r.costPerHead.source.label === GEMINI_UNGROUNDED_LABEL).length;
   return (
     <p className="roles__source">
       {result.source === "fallback" ? (
@@ -430,8 +431,8 @@ function SourceNote({ result }: { result: FindRestaurantsResult }) {
           <a href="https://developers.google.com/maps/documentation/places/web-service/op-overview" target="_blank" rel="noreferrer">
             Google Places
           </a>
-          {result.source === "cache" ? " (cached)" : ""}. {result.grounded} of {result.restaurants.length} priced by Gemini with Google Search;
-          follow any “est.” link for its source.{" "}
+          {result.source === "cache" ? " (cached)" : ""}. {result.grounded} of {result.restaurants.length} priced by Gemini with Google Search
+          {unverified ? `, ${unverified} by Gemini without a search source` : ""}; follow any “est.” link for its source.{" "}
         </>
       )}
       Costs, ETAs and delivery fees are estimates. ETA is prep time plus courier travel time from distance.
@@ -499,6 +500,7 @@ function RestaurantDetail({
                       <Icon name="external" />
                     </a>
                   </p>
+                  <PhotoCredit restaurant={r} />
                 </div>
               </div>
               <div className="rcard__facts">
