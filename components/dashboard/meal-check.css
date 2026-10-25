@@ -458,8 +458,7 @@
   font-weight: 600;
 }
 
-.qr-sheet__meta,
-.qr-sheet__hash {
+.qr-sheet__meta {
   color: var(--muted-foreground);
   font-size: 0.75rem;
 }

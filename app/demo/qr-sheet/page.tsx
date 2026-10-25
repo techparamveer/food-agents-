@@ -8,7 +8,8 @@ import "@/components/dashboard/dashboard.css";
 import "@/components/dashboard/meal-check.css";
 
 /* Printable demo QR codes, one per seeded attendee, so the meal check can scan real codes
-   from paper or a second screen. The encoded text comes from lib/qr.ts. */
+   from paper or a second screen. The encoded text comes from lib/qr.ts; the hashes themselves
+   aren't printed as text, so the sheet doesn't double as a list to copy them from. */
 
 export const metadata: Metadata = {
   title: "Demo QR codes · Comeda",
@@ -34,7 +35,6 @@ export default function QrSheetPage() {
             <QrCode value={payloadFor(a)} label={`QR code for ${a.name}`} />
             <span className="qr-sheet__name">{a.name}</span>
             <span className="qr-sheet__meta">@{a.discordHandle}</span>
-            <code className="qr-sheet__hash">{a.qrHash}</code>
           </li>
         ))}
       </ul>

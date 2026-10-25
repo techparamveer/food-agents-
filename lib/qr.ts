@@ -9,6 +9,9 @@ import type { Attendee } from "@/lib/types";
    1. Set each attendee's `qrHash` to the real value (seed or database). Nothing else stores hashes.
    2. If the real QR text wraps the hash (a URL, a prefix, JSON), change `hashFromPayload` to unwrap it.
    3. If the real hashes look different, change `HASH_PATTERN` so malformed scans are still caught.
+   Hashes are compared exactly, case and all, because real ones may be base64 or base58: only
+   whitespace around the scanned text is trimmed. Don't add case folding unless the real format
+   is case-insensitive (hex, say), and then fold in both `hashFromPayload` and `createResolver`.
    `payloadFor` must stay the inverse of `hashFromPayload`, so the demo QR sheet keeps scanning. */
 
 /** What a valid hash looks like. Placeholder hashes only, for now. */
@@ -31,7 +34,7 @@ export function payloadFor(attendee: Pick<Attendee, "qrHash">) {
 
 /** The hash inside scanned QR text, or null if it isn't one of ours. */
 export function hashFromPayload(text: string) {
-  const hash = text.trim().toLowerCase();
+  const hash = text.trim();
   return HASH_PATTERN.test(hash) ? hash : null;
 }
 
@@ -42,7 +45,7 @@ export type Resolution =
 /** Builds a hash → attendee lookup. Rebuild it when the attendee list changes. */
 export function createResolver(attendees: readonly Attendee[]) {
   const byHash = new Map<string, Attendee>();
-  for (const a of attendees) byHash.set(a.qrHash.trim().toLowerCase(), a);
+  for (const a of attendees) byHash.set(a.qrHash.trim(), a);
   return (text: string): Resolution => {
     const hash = hashFromPayload(text);
     if (!hash) return { ok: false, reason: "malformed", text };

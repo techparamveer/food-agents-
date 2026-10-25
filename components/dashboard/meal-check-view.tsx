@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { clock, useDashboard } from "@/components/dashboard/data";
 import { Icon } from "@/components/dashboard/icon";
 import { QrScanner } from "@/components/dashboard/qr-scanner";
-import { checkAllowance, countEaten, defaultRules, slotWindow, type SlotRules } from "@/lib/allowance";
+import { checkAllowance, countEaten, defaultRules, logServing, parseRuleOverrides, slotAt, slotWindow, type SlotRules } from "@/lib/allowance";
 import { createResolver } from "@/lib/qr";
 import { OXHACK_MEAL_LOGS } from "@/lib/seed/oxhack";
 import { DIETARY, type Attendee, type MealLog, type MealSlot } from "@/lib/types";
@@ -21,8 +21,13 @@ type Result =
 type Filter = "all" | "todo" | "eaten";
 
 const MINUTE = 60_000;
+/** Undo sits where Serve was, so a quick second tap on Serve mustn't undo it. */
+const UNDO_GUARD_MS = 600;
 const logsKey = (eventId: string) => `comeda:meal-logs:${eventId}`;
 const rulesKey = (eventId: string) => `comeda:meal-rules:${eventId}`;
+const newLogId = () => `log-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+/** The real time, for event handlers. (The compiler's purity check can't tell `serve` isn't run during render.) */
+const wallClock = () => Date.now();
 
 function readJson<T>(key: string): T | null {
   try {
@@ -41,15 +46,6 @@ function writeJson(key: string, value: unknown) {
   }
 }
 
-/** The slot being served at `now`, else the next one, else the last. */
-function slotAt(slots: MealSlot[], now: number) {
-  const open = slots.find((s) => {
-    const w = slotWindow(s, defaultRules(s));
-    return now >= w.opensAt && now < w.closesAt;
-  });
-  return open ?? slots.find((s) => Date.parse(s.servesAt) > now) ?? slots[slots.length - 1];
-}
-
 function Avatar({ attendee, size = "md" }: { attendee: Attendee; size?: "md" | "lg" }) {
   // eslint-disable-next-line @next/next/no-img-element
   return <img className={`mc-avatar mc-avatar--${size}`} src={attendee.avatarUrl} alt="" />;
@@ -59,17 +55,9 @@ const dietaryLabel = (a: Attendee) => DIETARY.find((d) => d.id === a.dietary)?.l
 
 export function MealCheckView() {
   const { demo, now: dataNow, event, slots, attendees, mealLogs, update } = useDashboard();
-  const [slotId, setSlotId] = useState(() => slotAt(slots, Date.parse(dataNow)).id);
-  const slot = slots.find((s) => s.id === slotId)!;
 
   /* Rules per slot: defaults from lib/allowance.ts, overridden in the panel below. */
   const [overrides, setOverrides] = useState<Record<string, SlotRules>>({});
-  const rules = overrides[slotId] ?? defaultRules(slot);
-  const setRules = (patch: Partial<SlotRules>) => {
-    const next = { ...overrides, [slotId]: { ...rules, ...patch } };
-    setOverrides(next);
-    writeJson(rulesKey(event.id), next);
-  };
 
   /* The clock. The demo's data is frozen on Saturday afternoon, so the table runs a demo clock
      a few minutes into the chosen slot that the organiser can nudge forward to show seconds. */
@@ -80,7 +68,19 @@ export function MealCheckView() {
     const id = window.setInterval(() => setLiveNow(Date.now()), 15_000);
     return () => window.clearInterval(id);
   }, [demo]);
+
+  /* The slot follows the clock (and the rules' table windows) until the organiser picks one by hand. */
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const autoId = slotAt(slots, demo ? Date.parse(dataNow) : liveNow, overrides).id;
+  const slotId = pickedId ?? autoId;
+  const slot = slots.find((s) => s.id === slotId)!;
+  const rules = overrides[slotId] ?? defaultRules(slot);
   const now = demo ? Date.parse(slot.servesAt) + offset * MINUTE : liveNow;
+  const setRules = (patch: Partial<SlotRules>) => {
+    const next = { ...overrides, [slotId]: { ...rules, ...patch } };
+    setOverrides(next);
+    writeJson(rulesKey(event.id), next);
+  };
 
   /* Logs and rules saved in this browser survive a refresh at the food table. */
   const restored = useRef(false);
@@ -89,10 +89,8 @@ export function MealCheckView() {
     restored.current = true;
     const logs = readJson<MealLog[]>(logsKey(event.id));
     if (Array.isArray(logs)) update((data) => ({ ...data, mealLogs: logs }));
-    const saved = readJson<Record<string, SlotRules>>(rulesKey(event.id));
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-off restore from localStorage after hydration
-    if (saved && typeof saved === "object") setOverrides(saved);
-  }, [event.id, update]);
+    setOverrides(parseRuleOverrides(readJson<unknown>(rulesKey(event.id)), slots));
+  }, [event.id, update, slots]);
 
   const commitLogs = (patch: (logs: MealLog[]) => MealLog[]) =>
     update((data) => {
@@ -105,6 +103,12 @@ export function MealCheckView() {
   const byId = useMemo(() => new Map(attendees.map((a) => [a.id, a])), [attendees]);
 
   const [result, setResult] = useState<Result | null>(null);
+  // When the clock moves the slot on, the card re-checks against the new slot; its serving was in the old one.
+  const [resultSlotId, setResultSlotId] = useState(slotId);
+  if (resultSlotId !== slotId) {
+    setResultSlotId(slotId);
+    setResult((r) => (r?.kind === "attendee" ? { ...r, servedLogId: undefined } : r));
+  }
   const resultRef = useRef<HTMLDivElement>(null);
   const show = (next: Result) => {
     setResult(next);
@@ -117,25 +121,30 @@ export function MealCheckView() {
     else show({ kind: "unknown", text: r.text, malformed: r.reason === "malformed" });
   };
 
+  const servedAt = useRef(0);
   const serve = (attendeeId: string, method: MealLog["method"]) => {
-    const log: MealLog = {
-      id: `log-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-      attendeeId,
-      slotId,
-      at: new Date(now).toISOString(),
-      method,
-    };
-    commitLogs((logs) => [...logs, log]);
-    setResult({ kind: "attendee", attendeeId, method, servedLogId: log.id });
+    // The card on screen may be stale (the live clock ticks every 15 s), so check again now.
+    const at = demo ? now : wallClock();
+    if (!demo) setLiveNow(at);
+    const r = logServing({ slot, rules, logs: mealLogs, attendeeId, now: at, method, id: newLogId() });
+    if (!r.ok) {
+      // The card re-renders with the fresh clock and logs, so it shows the ⛔ reason.
+      setResult({ kind: "attendee", attendeeId, method });
+      return;
+    }
+    commitLogs((logs) => [...logs, r.log]);
+    servedAt.current = wallClock();
+    setResult({ kind: "attendee", attendeeId, method, servedLogId: r.log.id });
   };
 
   const undo = (logId: string) => {
+    if (wallClock() - servedAt.current < UNDO_GUARD_MS) return;
     commitLogs((logs) => logs.filter((l) => l.id !== logId));
     setResult((r) => (r?.kind === "attendee" ? { ...r, servedLogId: undefined } : r));
   };
 
   const pickSlot = (id: string) => {
-    setSlotId(id);
+    setPickedId(id);
     setOffset(5);
     setResult(null);
   };
