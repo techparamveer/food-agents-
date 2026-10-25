@@ -1,6 +1,6 @@
 # Comeda 🍕
 
-Food planning for hackathon organisers: meal slots, restaurant picks, bulk orders with deadlines,
+Food planning for hackathon organisers: meal slots, restaurant picks, bulk orders with deadlines, comparisons and ease.
 a Gemini food planner and a QR meal check. The demo plans OxHack (150 people, Oxford, £5,000).
 See [`docs/SPEC.md`](docs/SPEC.md) for the agreed spec.
 
