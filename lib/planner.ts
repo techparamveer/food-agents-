@@ -175,6 +175,12 @@ export function cheapestDelivery(r: Restaurant): DeliveryOption | undefined {
   return [...r.delivery].sort((a, b) => a.fee.value - b.fee.value || a.eta.value - b.eta.value || a.platform.localeCompare(b.platform))[0];
 }
 
+/** Order-to-door minutes for a restaurant: its cheapest delivery option's ETA (the one the planner
+    picks), else prep + travel. Platform ETAs are the scraped figure when there is one. */
+export function doorMinutes(r: Restaurant): number {
+  return cheapestDelivery(r)?.eta.value ?? Math.round(r.prepMinutes.value) + r.travelMinutes.value;
+}
+
 /** Travel minutes for an option. Platform ETAs include prep, so take prep off. */
 function travelMinutes(r: Restaurant, option?: DeliveryOption) {
   return option ? Math.max(0, option.eta.value - r.prepMinutes.value) : r.travelMinutes.value;

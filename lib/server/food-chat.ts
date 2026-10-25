@@ -3,7 +3,7 @@ import "server-only";
 import { chatSigner, type ChatTurn } from "@/lib/chat-history";
 import { londonClock } from "@/lib/london-time";
 import { looksLikePlanRequest, parseFoodRequest, plannerInputFor, type FoodRequest } from "@/lib/food-request";
-import { planMeals, proposeSlots, type MealPlan } from "@/lib/planner";
+import { doorMinutes, planMeals, proposeSlots, type MealPlan } from "@/lib/planner";
 import { searchForSlots, setRestaurantSearch, type SearchInfo } from "@/lib/restaurant-search";
 import { findRestaurants } from "@/lib/restaurants/find";
 import { OXHACK_EVENT, OXHACK_NOW } from "@/lib/seed/oxhack";
@@ -198,7 +198,7 @@ function narrateRestaurants(restaurants: Restaurant[], dietary: Dietary[] = []) 
     needs ? `These cover ${needs}, best match first (all estimates):` : "Cheapest first (all estimates):",
     restaurants
       .slice(0, 5)
-      .map((r) => `- **${r.name}** · ${r.cuisine}, about £${r.costPerHead.value.toFixed(2)} a head, ${r.prepMinutes.value + r.travelMinutes.value} min to the door`)
+      .map((r) => `- **${r.name}** · ${r.cuisine}, about £${r.costPerHead.value.toFixed(2)} a head, ${doorMinutes(r)} min to the door`)
       .join("\n"),
   ].join("\n\n");
 }
@@ -308,7 +308,7 @@ export function foodChatStream(message: string, history: ChatTurn[], state?: Cha
                         name: r.name,
                         cuisine: r.cuisine,
                         perHead: `£${r.costPerHead.value.toFixed(2)} (estimate)`,
-                        minutesToDoor: r.prepMinutes.value + r.travelMinutes.value,
+                        minutesToDoor: doorMinutes(r),
                         serves: r.serves,
                         rating: r.rating,
                       })),

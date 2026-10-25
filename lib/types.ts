@@ -22,9 +22,12 @@ export type EstimateSource = {
 
 /** A number shown to organisers. `isEstimate` is false only for figures a human confirmed. */
 export type Estimate = {
+  /** For a range, the upper bound: deadlines plan for the slow end. */
   value: number;
   source: EstimateSource;
   isEstimate: boolean;
+  /** Set when the source gives a range, e.g. a platform's "25–40 min". */
+  range?: { low: number; high: number };
 };
 
 export type Venue = {
