@@ -6,6 +6,7 @@ import { Icon } from "@/components/dashboard/icon";
 import { PhotoCredit, RestaurantTile, StatusTrack } from "@/components/dashboard/parts";
 import type { Ask } from "@/components/dashboard/planner-pane";
 import { usePlanner } from "@/components/dashboard/planner-state";
+import { deadlineWindowPhase } from "@/lib/countdown";
 import { budgetSummary, isPlaced } from "@/lib/plan-sync";
 
 /* Home → Overview: the next meal, the nearest order deadlines, and budget spent vs total. */
@@ -20,7 +21,11 @@ export function OverviewView({ onOpenOrder, onAsk }: { onOpenOrder: (orderId: st
   const next = slots.find((s) => Date.parse(s.servesAt) > liveNow);
   const nextOrder = next ? orderForSlot(next.id) : undefined;
   const nextRestaurant = next ? restaurantById(nextOrder?.restaurantId ?? plan.slots.find((p) => p.slotId === next.id)?.restaurantId ?? "") : undefined;
-  const deadlines = orders.filter((o) => !isPlaced(o.status)).sort((a, b) => a.orderBy.localeCompare(b.orderBy));
+  const deadlinePhase = deadlineWindowPhase(liveNow, event.startsAt, event.endsAt);
+  const deadlines =
+    deadlinePhase === "active"
+      ? orders.filter((o) => !isPlaced(o.status)).sort((a, b) => a.orderBy.localeCompare(b.orderBy))
+      : [];
   const budget = budgetSummary(data);
   const lastServed = [...slots].reverse().find((s) => Date.parse(s.servesAt) <= liveNow) ?? slots[0];
 
@@ -92,7 +97,15 @@ export function OverviewView({ onOpenOrder, onAsk }: { onOpenOrder: (orderId: st
 
           <section>
             <h2 className="roles__heading">Order deadlines</h2>
-            {deadlines.length === 0 && <p className="roles__empty">Nothing left to order.</p>}
+            {deadlines.length === 0 && (
+              <p className="roles__empty">
+                {deadlinePhase === "before"
+                  ? `Deadlines begin when the event starts at ${clock(event.startsAt)}.`
+                  : deadlinePhase === "ended"
+                    ? `Deadlines ended with the event at ${clock(event.endsAt)}.`
+                    : "Nothing left to order."}
+              </p>
+            )}
             <ul className="upcoming">
               {deadlines.slice(0, DEADLINES_SHOWN).map((order) => {
                 const slot = slots.find((s) => s.id === order.slotId);

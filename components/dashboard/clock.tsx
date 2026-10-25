@@ -4,20 +4,19 @@ import { useSyncExternalStore } from "react";
 import { Icon } from "@/components/dashboard/icon";
 import { countdown } from "@/lib/countdown";
 
-/* The dashboard's live clock. The event's `now` is where it starts (fixed in the demo so it always
-   opens on Saturday afternoon); from there it runs in real time, one shared one-second tick. */
+/* The dashboard's live clock. It follows the current instant from the browser, with one shared
+   one-second tick. `base` is only the stable server-rendered snapshot used during hydration. */
 
 const listeners = new Set<() => void>();
-let started = 0;
-let elapsed = 0;
+let current = typeof window === "undefined" ? 0 : Date.now();
 let timer: number | undefined;
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
   if (timer === undefined) {
-    started ||= Date.now();
+    current = Date.now();
     timer = window.setInterval(() => {
-      elapsed = Date.now() - started;
+      current = Date.now();
       listeners.forEach((l) => l());
     }, 1000);
   }
@@ -30,10 +29,9 @@ function subscribe(listener: () => void) {
   };
 }
 
-/** Milliseconds since `base` began, ticking every second. 0 on the server. */
+/** The current instant in milliseconds, ticking every second. */
 export function useLiveNow(base: string) {
-  const ms = useSyncExternalStore(subscribe, () => elapsed, () => 0);
-  return Date.parse(base) + ms;
+  return useSyncExternalStore(subscribe, () => current, () => Date.parse(base));
 }
 
 /** A live "3h 05m" pill until `deadline`. Turns urgent inside the hour and says so once it passes. */

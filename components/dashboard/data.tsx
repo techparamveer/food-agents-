@@ -82,13 +82,3 @@ export const money = (pounds: number) =>
     minimumFractionDigits: Number.isInteger(pounds) ? 0 : 2,
     maximumFractionDigits: 2,
   });
-
-/** "in 53 min", "in 6 h 10 min", or "passed". */
-export function countdown(target: string, now: string) {
-  const minutes = Math.round((Date.parse(target) - Date.parse(now)) / 60_000);
-  if (minutes <= 0) return "passed";
-  if (minutes < 60) return `in ${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m ? `in ${h} h ${m} min` : `in ${h} h`;
-}

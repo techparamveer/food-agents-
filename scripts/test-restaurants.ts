@@ -311,7 +311,7 @@ assert.ok(gain("pricey-near") > gain("cheap-near"), "covering more of the mix ra
 /* ---------- seeded fallback ---------- */
 
 const seeds = seedPlaces();
-assert.ok(seeds.length >= 15, `seed has ${seeds.length}`);
+assert.equal(seeds.length, 3, "fallback stays compact");
 assert.equal(new Set(seeds.map((s) => s.id)).size, seeds.length, "seed ids unique");
 for (const s of seeds) {
   assert.ok(s.distanceMeters < 5000, `${s.name} is within 5 km`);
@@ -335,6 +335,6 @@ for (let i = 1; i < fb.restaurants.length; i++) {
   assert.ok(fb.restaurants[i - 1]!.score >= fb.restaurants[i]!.score, "fallback sorted best-first");
 }
 assert.deepEqual(fb.warnings, ["test"]);
-assert.ok(fb.cuisines.length >= 8);
+assert.equal(fb.cuisines.length, 3);
 
 console.log("restaurants ok");

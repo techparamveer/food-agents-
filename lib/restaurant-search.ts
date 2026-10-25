@@ -52,7 +52,7 @@ export const findSeededRestaurants = async ({ maxPerHead, dietary = [], dietaryM
   const covers = (r: Restaurant) =>
     dietary.filter((d) => r.serves.includes(d)).length +
     (dietaryMix ? r.serves.reduce((n, d) => n + (dietaryMix[d] ?? 0), 0) / 100 : 0);
-  return OXHACK_RESTAURANTS.filter((r) => maxPerHead === undefined || r.costPerHead.value <= maxPerHead).sort(
+  return OXHACK_RESTAURANTS.slice(0, 3).filter((r) => maxPerHead === undefined || r.costPerHead.value <= maxPerHead).sort(
     (a, b) => covers(b) - covers(a) || a.costPerHead.value - b.costPerHead.value || a.id.localeCompare(b.id),
   );
 };

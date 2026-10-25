@@ -3,7 +3,7 @@ import { DashboardProvider } from "@/components/dashboard/data";
 import { HomeScreen } from "@/components/dashboard/home-screen";
 import { PlannerProvider } from "@/components/dashboard/planner-state";
 import { isSection, isSettingsTab } from "@/lib/sections";
-import { OXHACK } from "@/lib/seed/oxhack";
+import { oxhackForToday } from "@/lib/seed/oxhack";
 import "@/components/dashboard/dashboard.css";
 import "@/components/dashboard/meal-check.css";
 import "@/components/onboarding/onboarding.css";
@@ -22,8 +22,9 @@ export default async function DemoPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { section, settings, play } = await searchParams;
+  const demo = oxhackForToday();
   return (
-    <DashboardProvider initial={OXHACK} demo>
+    <DashboardProvider initial={demo} demo>
       <PlannerProvider>
         <HomeScreen
           initialSection={typeof section === "string" && isSection(section) ? section : undefined}

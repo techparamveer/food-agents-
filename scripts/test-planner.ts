@@ -93,7 +93,7 @@ assert.equal(gap.slots[0].alternatives[0].note, "no halal");
 const only = planMeals({ ...OX, slots: proposeSlots(OX).slice(1, 2) }, [place("nohalal", 5, "Pizza", ["veg", "vegan", "gf"])]);
 assert.deepEqual(only.slots[0].missing, ["halal"]);
 assert.match(only.slots[0].reason, /doesn't list halal/);
-assert.ok(only.notes.some((n) => /can't cover every dietary need/.test(n)));
+assert.ok(only.notes.every((note) => !/can't cover every dietary need/.test(note)), "plan-wide dietary prose is generated separately");
 
 // 7. Portions: breakfast and the midnight snack cost less than a full meal.
 const [lunch, , snack, breakfast] = proposeSlots(OX);

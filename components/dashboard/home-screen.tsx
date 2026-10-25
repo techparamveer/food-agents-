@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Logo } from "@/components/logo";
-import { clock, countdown, useDashboard } from "@/components/dashboard/data";
+import { clock, useDashboard } from "@/components/dashboard/data";
 import { useLiveNow } from "@/components/dashboard/clock";
 import { Icon, type IconName } from "@/components/dashboard/icon";
 import { MealCheckView } from "@/components/dashboard/meal-check-view";
@@ -14,6 +14,7 @@ import { PlannerPane, type PlannerApi, type PlannerContext } from "@/components/
 import { RestaurantsView } from "@/components/dashboard/restaurants-view";
 import { SettingsDialog } from "@/components/settings/settings-dialog";
 import { isPlaced } from "@/lib/plan-sync";
+import { deadlineApproximation, deadlineWindowPhase } from "@/lib/countdown";
 import type { Section, SettingsTab } from "@/lib/sections";
 
 const NAV: { id: Section; label: string; icon: IconName }[] = [
@@ -30,6 +31,15 @@ const LINKS: { tab: SettingsTab; label: string; icon: IconName }[] = [
 ];
 
 const ACCOUNT_MENU = LINKS;
+
+const calendarDateTime = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Europe/London",
+});
 
 /* "Getting started" stays dismissed per browser. */
 const CHECKLIST_KEY = "comeda:checklist-dismissed";
@@ -154,12 +164,14 @@ export function HomeScreen({
   const checklistOpen = !checklistDismissed && stepsDone < steps.length;
 
   const liveNow = useLiveNow(now);
-  const due = orders.filter((o) => !isPlaced(o.status)).sort((a, b) => a.orderBy.localeCompare(b.orderBy));
+  const deadlinePhase = deadlineWindowPhase(liveNow, event.startsAt, event.endsAt);
+  const pendingOrders = orders.filter((o) => !isPlaced(o.status)).sort((a, b) => a.orderBy.localeCompare(b.orderBy));
+  const due = deadlinePhase === "active" ? pendingOrders : [];
   const badges: Partial<Record<Section, { n: number; tone: "new" | "urgent" }>> = {
     orders: { n: due.filter((o) => Date.parse(o.orderBy) - liveNow < 2 * 3_600_000).length, tone: "urgent" },
   };
 
-  const first = due[0];
+  const first = deadlinePhase === "ended" ? undefined : pendingOrders[0];
   const firstSlot = first ? slots.find((s) => s.id === first.slotId) : undefined;
   const context: PlannerContext =
     section === "restaurants"
@@ -172,9 +184,14 @@ export function HomeScreen({
             prompt: "Scan a QR code or search by name. I'll flag anyone collecting twice before seconds open.",
             suggestions: ["How many still to eat?", "Who hasn't eaten today?"],
           }
-        : first && firstSlot
+        : deadlinePhase === "ended"
           ? {
-              prompt: `Next deadline: order ${firstSlot.label} from ${restaurantById(first.restaurantId).name} by ${clock(first.orderBy)}, ${countdown(first.orderBy, now)}.`,
+              prompt: `Order deadlines ended at ${calendarDateTime.format(new Date(event.endsAt))}, when ${event.name} ended.`,
+              suggestions: ["Are we still under budget?", "Review the event orders"],
+            }
+          : first && firstSlot
+          ? {
+              prompt: `Next deadline: order ${firstSlot.label} from ${restaurantById(first.restaurantId).name} by ${calendarDateTime.format(new Date(event.endsAt))}, ${deadlineApproximation(event.startsAt, event.endsAt)}.`,
               suggestions: ["Feed 150, 20 vegan, by 7pm under £1,300", "Plan the whole weekend"],
             }
           : {

@@ -8,7 +8,7 @@ async function main() {
   const query = { venue: OXHACK_EVENT.venue, slotTime: "2026-11-14T18:30:00Z", headcount: 150 };
 
   const seeded = await searchRestaurants(query);
-  assert.equal(seeded.length, OXHACK_RESTAURANTS.length);
+  assert.equal(seeded.length, 3);
   assert.deepEqual(seeded.map((r) => r.costPerHead.value), [...seeded.map((r) => r.costPerHead.value)].sort((a, b) => a - b), "cheapest first");
   assert.equal((await findSeededRestaurants({ ...query, dietary: ["halal", "gf"] }))[0].serves.includes("halal"), true);
   assert.ok((await findSeededRestaurants({ ...query, maxPerHead: 6 })).every((r) => r.costPerHead.value <= 6));
@@ -20,9 +20,9 @@ async function main() {
   setRestaurantSearch(async () => {
     throw new Error("Places down");
   });
-  assert.equal((await searchRestaurants(query)).length, OXHACK_RESTAURANTS.length, "falls back when live search throws");
+  assert.equal((await searchRestaurants(query)).length, 3, "falls back when live search throws");
   setRestaurantSearch(async () => ({ restaurants: [] }));
-  assert.equal((await searchRestaurants(query)).length, OXHACK_RESTAURANTS.length, "falls back when live search is empty");
+  assert.equal((await searchRestaurants(query)).length, 3, "falls back when live search is empty");
 
   console.log("test-restaurant-search: ok");
 }

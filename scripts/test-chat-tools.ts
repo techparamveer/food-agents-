@@ -37,12 +37,14 @@ async function main() {
     });
   });
   await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
-  delete process.env.GOOGLE_PLACES_API_KEY;
   process.env.GEMINI_API_KEY = "test-key";
   process.env.GEMINI_BASE_URL = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   process.env.COMEDA_CACHE = "file";
 
   const { foodChatStream, replySigner } = await import("@/lib/server/food-chat");
+  const { setRestaurantSearch } = await import("@/lib/restaurant-search");
+  const { OXHACK_RESTAURANTS } = await import("@/lib/seed/oxhack");
+  setRestaurantSearch(async () => ({ restaurants: OXHACK_RESTAURANTS, source: "live", grounded: OXHACK_RESTAURANTS.length, warnings: [] }));
   const stream = foodChatStream("feed 40 by 7pm, and who does vegan?", []);
   const text = await new Response(stream).text();
   server.close();
@@ -60,10 +62,10 @@ async function main() {
 
   const plan = events.find((e) => e.type === "plan");
   assert.ok(plan.restaurants.length > 0, "the plan event carries the restaurants it names");
-  assert.equal(plan.plan.search.source, "fallback", "no Places key → seeded, and the plan says so");
+  assert.equal(plan.plan.search.source, "live", "the chat only plans from a live Google Places-shaped result");
   assert.ok(plan.plan.slots.every((s: { restaurantId: string }) => plan.restaurants.some((r: { id: string }) => r.id === s.restaurantId)));
   const restaurants = events.find((e) => e.type === "restaurants");
-  assert.equal(restaurants.search.source, "fallback");
+  assert.equal(restaurants.search.source, "live");
 
   const reply = events.filter((e) => e.type === "delta").map((e) => e.text).join("");
   assert.equal(reply, "All set: dinner for 40 is planned.");

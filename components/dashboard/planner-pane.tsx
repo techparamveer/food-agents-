@@ -289,6 +289,7 @@ function GetItDone({ progress: scripted, tour = false }: { progress?: number; to
   // The landing demo never shows the form: its script plans the defaults (see PlannerPane).
   const [editing, setEditing] = useState(!mealPlan && !tour);
   const [step, setStep] = useState<number | undefined>(undefined);
+  const [runError, setRunError] = useState("");
   const progress = scripted ?? step;
   const working = progress !== undefined;
 
@@ -296,13 +297,21 @@ function GetItDone({ progress: scripted, tour = false }: { progress?: number; to
   useEffect(() => () => timers.current.forEach(window.clearTimeout), []);
   const submit = async (next: PlannerForm) => {
     setEditing(false);
+    setRunError("");
     setStep(0);
     timers.current.forEach(window.clearTimeout);
     timers.current = [1, 2, 3].map((n) => window.setTimeout(() => setStep(n), n * STEP_MS));
     // The steps tick at their own pace; the card stays on the last one until the live search is back.
     const minimum = new Promise((done) => (timers.current[3] = window.setTimeout(done, 4 * STEP_MS)));
-    await Promise.all([run(next), minimum]);
-    setStep(undefined);
+    try {
+      await Promise.all([run(next), minimum]);
+    } catch (error) {
+      setEditing(true);
+      setRunError(error instanceof Error ? error.message : "Live Google Places data is unavailable right now.");
+    } finally {
+      timers.current.forEach(window.clearTimeout);
+      setStep(undefined);
+    }
   };
 
   const steps = PLAN_STEPS(form, mealPlan?.slots.length ?? slots.length);
@@ -336,6 +345,7 @@ function GetItDone({ progress: scripted, tour = false }: { progress?: number; to
       {open && !working && !tour && (editing || !mealPlan) && (
         <PlanForm initial={form} onSubmit={(next) => void submit(next)} onCancel={mealPlan ? () => setEditing(false) : undefined} />
       )}
+      {open && !working && runError && <p className="enq__error">{runError}</p>}
       {open && !working && !editing && mealPlan && <PlanResult plan={mealPlan} onEdit={() => setEditing(true)} />}
     </div>
   );
@@ -533,11 +543,7 @@ function PlanResult({ plan, onEdit }: { plan: MealPlan; onEdit: () => void }) {
               </button>
             </div>
           </div>
-          {plan.notes.map((n) => (
-            <p key={n} className="tool__empty">
-              {n}
-            </p>
-          ))}
+          {plan.narrative && <p className="tool__empty">{plan.narrative}</p>}
           {plan.search && <SearchNote search={plan.search} />}
         </div>
       ) : (
@@ -560,14 +566,14 @@ function PlanResult({ plan, onEdit }: { plan: MealPlan; onEdit: () => void }) {
   );
 }
 
-/** Where the plan's restaurants came from. Says plainly when it's seeded data rather than live. */
+/** Where the plan's restaurants came from. */
 function SearchNote({ search }: { search: SearchInfo }) {
   return (
     <p className="tool__empty">
       {search.source === "fallback"
-        ? "Planned from seeded sample restaurants, not live data."
+        ? "Planned with sample restaurant data."
         : `Planned from ${search.count} live Google Places restaurants${search.source === "cache" ? " (cached)" : ""}; ${search.grounded} of their costs are grounded in Google Search, the rest are labelled estimates.`}
-      {search.warnings.map((w) => ` ${w}`).join("")}
+      {search.source !== "fallback" && search.warnings.map((w) => ` ${w}`).join("")}
     </p>
   );
 }

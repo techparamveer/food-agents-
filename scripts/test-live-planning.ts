@@ -3,7 +3,14 @@ import { applyPlan, budgetSummary, formFromEvent, plannerInput } from "@/lib/pla
 import { planMeals, swapRestaurant } from "@/lib/planner";
 import { openAtSlots, searchForSlots } from "@/lib/restaurant-search";
 import { fallbackResult, normaliseInput } from "@/lib/restaurants/find-core";
-import { OXHACK, OXHACK_EVENT } from "@/lib/seed/oxhack";
+import { OXHACK, OXHACK_EVENT, oxhackForToday } from "@/lib/seed/oxhack";
+
+const today = oxhackForToday("2026-10-25T08:30:00Z");
+assert.equal(today.now, "2026-10-25T08:30:00Z");
+assert.equal(today.event.startsAt, "2026-10-25T10:00:00Z");
+assert.equal(today.event.endsAt, "2026-10-26T16:00:00Z");
+assert.deepEqual(today.slots.map((slot) => slot.label), ["Sunday lunch", "Sunday dinner", "Midnight snack", "Monday breakfast", "Monday lunch"]);
+assert.equal(today.orders.find((order) => order.slotId === "sat-dinner")?.orderBy, "2026-10-25T17:58:00Z");
 
 /* Planning on live search results: restaurants the seeded event has never seen, opening hours per
    slot, and placed orders that must survive whatever the search returns. */
@@ -61,10 +68,10 @@ async function main() {
     const open = openAt[s.slot.id];
     if (open.length) assert.ok(open.includes(s.restaurantId), `${s.slot.label}: ${s.restaurantId} is open`);
   }
-  // Zheng opens 17:30, so it can't do Sunday breakfast or lunch.
-  const zheng = live.find((r) => r.name === "Zheng")!;
-  assert.ok(openAt["sat-dinner"].includes(zheng.id));
-  assert.ok(!openAt["sun-breakfast"].includes(zheng.id) && !openAt["sun-lunch"].includes(zheng.id));
+  // The curry restaurant can do dinner and lunch, but does not open for breakfast.
+  const curry = live.find((r) => r.name === "Cowley Road Curry House")!;
+  assert.ok(openAt["sat-dinner"].includes(curry.id));
+  assert.ok(!openAt["sun-breakfast"].includes(curry.id) && openAt["sun-lunch"].includes(curry.id));
   // Nothing in the seed is open at midnight: the planner still picks, and says to order ahead.
   assert.deepEqual(openAt["sat-midnight"], []);
   assert.match(plan.slots.find((s) => s.slot.id === "sat-midnight")!.reason, /Nothing nearby is listed as open at 00:00/);
@@ -106,7 +113,7 @@ async function main() {
     throw new Error("HTTP 429");
   });
   assert.equal(failed.source, "fallback");
-  assert.equal(failed.restaurants.length, OXHACK.restaurants.length);
+  assert.equal(failed.restaurants.length, 3);
   assert.match(failed.warnings[0], /seeded restaurants/);
   assert.ok(!failed.warnings.join(" ").includes("429"), "no upstream detail in what users see");
   const empty = await searchForSlots(q, slots, async () => ({ restaurants: [] }));

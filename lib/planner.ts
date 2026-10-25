@@ -86,6 +86,8 @@ export type MealPlan = {
   fits: boolean;
   /** Plan-wide trade-offs, plain sentences. */
   notes: string[];
+  /** Evidence-bounded summary generated from the Google Places-backed plan. */
+  narrative?: string;
   /** Where the restaurants came from. Set by the caller that searched; the planner never fetches. */
   search?: SearchInfo;
 };
@@ -342,8 +344,6 @@ function totals(input: PlannerInput, slots: SlotPlan[]): Omit<MealPlan, "input" 
     notes.push(`${gbp(total)} of ${gbp(budget)} across ${slots.length} meals${meals ? `, about £${(total / meals).toFixed(2)} a head per meal` : ""}.`);
     notes.push(`${gbp(remaining)} left for drinks, snacks and surprises.`);
   } else notes.push(`Over budget by ${gbp(-remaining)} even with the cheapest options. Drop a meal or raise the budget.`);
-  const gaps = slots.filter((s) => s.missing.length);
-  if (gaps.length) notes.push(`${gaps.map((s) => s.slot.label).join(", ")} can't cover every dietary need from one restaurant.`);
   return { total, budget, remaining, fits, notes };
 }
 
@@ -420,7 +420,7 @@ export function swapRestaurant(plan: MealPlan, slotId: string, restaurantId: str
     return j !== at && x ? [{ slot: s.slot, r: x }] : [];
   });
   const slots = plan.slots.map((s, j) => (j === at ? buildSlot(s.slot, r, s.lines, restaurants, others, "swapped", plan.input.openAt) : s));
-  return { ...plan, slots, ...totals(plan.input, slots) };
+  return { ...plan, narrative: undefined, slots, ...totals(plan.input, slots) };
 }
 
 /** Marks one slot (or every slot, without `slotId`) as approved. */

@@ -1,4 +1,5 @@
 import { costSlot, splitDietary } from "@/lib/planner";
+import { iso, londonDay, londonInstant, londonParts } from "@/lib/london-time";
 import type {
   Attendee,
   Estimate,
@@ -248,3 +249,43 @@ export const OXHACK: EventData = {
   mealLogs: OXHACK_MEAL_LOGS,
   plan: OXHACK_PLAN,
 };
+
+const DAY = 86_400_000;
+const weekday = new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone: "Europe/London" });
+
+function dayNumber(day: string) {
+  const [year, month, date] = day.split("-").map(Number);
+  return Date.UTC(year, month - 1, date) / DAY;
+}
+
+/** Move a seeded instant by whole London calendar days, retaining its London wall-clock time. */
+function shiftLondonDay(at: string, days: number) {
+  const date = new Date(at);
+  const originalDay = londonDay(date);
+  const shiftedDay = new Date((dayNumber(originalDay) + days) * DAY).toISOString().slice(0, 10);
+  const { hour, minute } = londonParts(date);
+  const shifted = londonInstant(shiftedDay, hour, minute).getTime() + date.getUTCSeconds() * 1000 + date.getUTCMilliseconds();
+  return iso(new Date(shifted));
+}
+
+/** The demo event rebased onto today's UK date, so its deadline clock is useful whenever it is opened. */
+export function oxhackForToday(now: Date | string = new Date()): EventData {
+  const instant = typeof now === "string" ? new Date(now) : now;
+  const days = dayNumber(londonDay(instant)) - dayNumber(londonDay(OXHACK_NOW));
+  const shift = (at: string) => shiftLondonDay(at, days);
+  const slots = OXHACK_SLOTS.map((slot) => {
+    const servesAt = shift(slot.servesAt);
+    const label = slot.kind === "snack" ? "Midnight snack" : `${weekday.format(new Date(servesAt))} ${slot.kind}`;
+    return { ...slot, label, servesAt };
+  });
+
+  return {
+    ...OXHACK,
+    now: iso(instant),
+    event: { ...OXHACK_EVENT, startsAt: shift(OXHACK_EVENT.startsAt), endsAt: shift(OXHACK_EVENT.endsAt) },
+    slots,
+    orders: OXHACK_ORDERS.map((order) => ({ ...order, orderBy: shift(order.orderBy) })),
+    mealLogs: OXHACK_MEAL_LOGS.map((log) => ({ ...log, at: shift(log.at) })),
+    plan: { ...OXHACK_PLAN, generatedAt: shift(OXHACK_PLAN.generatedAt) },
+  };
+}

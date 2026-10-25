@@ -181,7 +181,7 @@ export type Plan = {
 
 /** Everything the dashboard renders for one event. */
 export type EventData = {
-  /** The dashboard's clock. Fixed in the demo so countdowns read the same every time. */
+  /** The dashboard's reference clock, also used as the server-rendered hydration snapshot. */
   now: string;
   event: Event;
   slots: MealSlot[];

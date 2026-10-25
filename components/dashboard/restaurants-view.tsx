@@ -6,7 +6,7 @@ import { Icon } from "@/components/dashboard/icon";
 import { EstimateValue, FilterMenu, PhotoCredit, RestaurantTile } from "@/components/dashboard/parts";
 import type { Ask } from "@/components/dashboard/planner-pane";
 import { GEMINI_UNGROUNDED_LABEL, platformLabel } from "@/lib/restaurants/estimate-parse";
-import { fallbackResult, normaliseInput, type FindRestaurantsResult } from "@/lib/restaurants/find-core";
+import type { FindRestaurantsResult } from "@/lib/restaurants/find-core";
 import { filterRestaurants, sortRestaurants, type SortKey } from "@/lib/restaurants/rank";
 import type { RankedRestaurant } from "@/lib/restaurants/types";
 import { DIETARY, type Dietary, type Estimate, type MealSlot, type Restaurant } from "@/lib/types";
@@ -121,6 +121,7 @@ export function RestaurantsView({ onAsk }: { onAsk: Ask }) {
   const [slotId, setSlotId] = useState(() => nextSlot(slots, now)?.id ?? "");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState<{ key: string; result: FindRestaurantsResult } | null>(null);
+  const [loadError, setLoadError] = useState<{ key: string; message: string } | null>(null);
 
   const slot = slots.find((s) => s.id === slotId) ?? slots[0]!;
   const key = `${slot.servesAt}|${slot.headcount}`;
@@ -131,6 +132,7 @@ export function RestaurantsView({ onAsk }: { onAsk: Ask }) {
     fetch(`/api/restaurants?${params}`, { signal: ctrl.signal })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
       .then((result: FindRestaurantsResult) => {
+        setLoadError(null);
         setLoaded({ key, result });
         // Make live restaurants resolvable by id for the planner and order builder.
         update((d) => {
@@ -138,15 +140,15 @@ export function RestaurantsView({ onAsk }: { onAsk: Ask }) {
           return { ...d, restaurants: [...d.restaurants.filter((r) => !fresh.has(r.id)), ...fresh.values()] };
         });
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (ctrl.signal.aborted) return;
-        const input = normaliseInput({ slotTime: slot.servesAt, headcount: slot.headcount, venue: event.venue, openAtSlot: false });
-        setLoaded({ key, result: fallbackResult(input, ["Couldn't reach the restaurants API: showing seeded Oxford restaurants."]) });
+        setLoadError({ key, message: error instanceof Error ? error.message : "Live Google Places data is unavailable right now." });
       });
     return () => ctrl.abort();
   }, [key, slot.servesAt, slot.headcount, event.venue, update]);
 
   const result = loaded?.key === key ? loaded.result : null;
+  const error = loadError?.key === key ? loadError.message : "";
   const selected = selectedId ? result?.restaurants.find((r) => r.id === selectedId) : undefined;
 
   if (selected && result) {
@@ -161,7 +163,7 @@ export function RestaurantsView({ onAsk }: { onAsk: Ask }) {
       />
     );
   }
-  return <RestaurantList slot={slot} slots={slots} onSlot={setSlotId} result={result} onSelect={setSelectedId} />;
+  return <RestaurantList slot={slot} slots={slots} onSlot={setSlotId} result={result} error={error} onSelect={setSelectedId} />;
 }
 
 function RestaurantList({
@@ -169,12 +171,14 @@ function RestaurantList({
   slots,
   onSlot,
   result,
+  error,
   onSelect,
 }: {
   slot: MealSlot;
   slots: MealSlot[];
   onSlot: (id: string) => void;
   result: FindRestaurantsResult | null;
+  error: string;
   onSelect: (id: string) => void;
 }) {
   const { event } = useDashboard();
@@ -359,7 +363,9 @@ function RestaurantList({
               {narrowed ? "Results" : picks.length > 0 ? "More restaurants" : "Restaurants"}
               <span className="dash-tab__count">{rest.length}</span>
             </h2>
-            {!result ? (
+            {error ? (
+              <p className="roles__empty">{error}</p>
+            ) : !result ? (
               <p className="roles__empty">Finding restaurants near {event.venue.name}…</p>
             ) : rest.length === 0 ? (
               <p className="roles__empty">No restaurants match. Try clearing a filter.</p>
@@ -424,7 +430,7 @@ function SourceNote({ result }: { result: FindRestaurantsResult }) {
   return (
     <p className="roles__source">
       {result.source === "fallback" ? (
-        <>Seeded Oxford restaurants (offline data); ratings and hours are representative, not live. </>
+        <> </>
       ) : (
         <>
           Restaurants, ratings and hours from{" "}
@@ -436,9 +442,7 @@ function SourceNote({ result }: { result: FindRestaurantsResult }) {
         </>
       )}
       Costs, ETAs and delivery fees are estimates. ETA is prep time plus courier travel time from distance.
-      {result.warnings.map((w) => (
-        <span key={w}> {w}</span>
-      ))}
+      {result.source !== "fallback" && result.warnings.map((w) => <span key={w}> {w}</span>)}
     </p>
   );
 }

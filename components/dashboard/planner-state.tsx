@@ -6,7 +6,7 @@ import { applyPlan, formFromEvent, mergeRestaurants, plannerInput, type PlannerF
 import { approveSlot, costOrder, planMeals, swapRestaurant, type MealPlan } from "@/lib/planner";
 import { searchForSlots, type FindRestaurants } from "@/lib/restaurant-search";
 import type { FindRestaurantsResult } from "@/lib/restaurants/find-core";
-import type { DeliveryPlatform, OrderLine, OrderStatus } from "@/lib/types";
+import type { DeliveryPlatform, OrderLine, OrderStatus, Restaurant } from "@/lib/types";
 
 /* "Get it done" state: the planner's latest proposal and the actions that write it into the event
    (approve, swap, order status, order quantities). Everything stays in memory in the demo.
@@ -20,6 +20,26 @@ const fetchRestaurants: FindRestaurants = async (q) => {
   if (!res.ok) throw new Error(`Restaurant search failed: ${res.status}`);
   return (await res.json()) as FindRestaurantsResult;
 };
+
+async function generateNarrative(plan: MealPlan, restaurants: Restaurant[]) {
+  if (!plan.search) return undefined;
+  const response = await fetch("/api/plan-narrative", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      source: plan.search.source,
+      budget: plan.budget,
+      total: plan.total,
+      remaining: plan.remaining,
+      fits: plan.fits,
+      meals: plan.slots.map((slot) => ({ label: slot.slot.label, restaurantId: slot.restaurantId, missing: slot.missing })),
+      restaurants: restaurants.map((restaurant) => ({ id: restaurant.id, name: restaurant.name, serves: restaurant.serves })),
+    }),
+  });
+  if (!response.ok) return undefined;
+  const body = (await response.json()) as { narrative?: unknown };
+  return typeof body.narrative === "string" && body.narrative.trim() ? body.narrative.trim() : undefined;
+}
 
 type Planner = {
   /** The last plan "Get it done" produced; null until it has run. */
@@ -68,7 +88,9 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         fetchRestaurants,
       );
       // Placed orders keep their own restaurants; everything else is planned from what the search found.
-      const plan: MealPlan = { ...planMeals(plannerInput(data, next, openAt), found), search };
+      const planned: MealPlan = { ...planMeals(plannerInput(data, next, openAt), found), search };
+      const narrative = await generateNarrative(planned, found).catch(() => undefined);
+      const plan = narrative ? { ...planned, narrative } : planned;
       if (ticket === latest.current) {
         update((d) => mergeRestaurants(d, found));
         commit(plan);

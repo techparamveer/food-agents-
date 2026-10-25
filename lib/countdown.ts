@@ -13,6 +13,8 @@ export function orderBy(servesAt: string, prepMinutes: number, deliveryMinutes: 
 
 export type CountdownTone = "overdue" | "urgent" | "soon" | "ok";
 
+export type DeadlineWindowPhase = "before" | "active" | "ended";
+
 export type Countdown = {
   /** Whole minutes left; negative once the deadline has passed. */
   minutes: number;
@@ -21,6 +23,14 @@ export type Countdown = {
   tone: CountdownTone;
 };
 
+/** Whether order deadlines should be shown for an event. The start is inclusive; the end is not. */
+export function deadlineWindowPhase(now: number | string, startsAt: string, endsAt: string): DeadlineWindowPhase {
+  const current = typeof now === "string" ? new Date(now).getTime() : now;
+  if (current < new Date(startsAt).getTime()) return "before";
+  if (current >= new Date(endsAt).getTime()) return "ended";
+  return "active";
+}
+
 /** Time left until `deadline` from `now` (ms or ISO). Rounds down so the label never promises more than there is. */
 export function countdown(now: number | string, deadline: string): Countdown {
   const from = typeof now === "string" ? new Date(now).getTime() : now;
@@ -28,6 +38,18 @@ export function countdown(now: number | string, deadline: string): Countdown {
   const minutes = ms >= 0 ? Math.floor(ms / MINUTE) : -Math.ceil(-ms / MINUTE);
   const tone: CountdownTone = ms < 0 ? "overdue" : minutes < 60 ? "urgent" : minutes < 180 ? "soon" : "ok";
   return { minutes, label: duration(minutes), tone };
+}
+
+/** Sentence-friendly difference between two instants: "in 53 min", "in 6 h 10 min", "in 2 d 4 h 15 min", or "passed". */
+export function deadlineApproximation(now: number | string, deadline: string): string {
+  const { minutes } = countdown(now, deadline);
+  if (minutes <= 0) return "passed";
+  const d = Math.floor(minutes / 1440);
+  const h = Math.floor((minutes % 1440) / 60);
+  const m = minutes % 60;
+  if (d > 0) return `in ${d} d${h ? ` ${h} h` : ""}${m ? ` ${m} min` : ""}`;
+  if (h > 0) return m ? `in ${h} h ${m} min` : `in ${h} h`;
+  return `in ${m} min`;
 }
 
 function duration(minutes: number): string {
