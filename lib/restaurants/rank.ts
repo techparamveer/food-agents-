@@ -106,6 +106,7 @@ export function scoreRestaurants(
         delivery,
         websiteUrl: place.websiteUrl,
         mapsUrl: place.mapsUrl,
+        ...(place.websiteUrl && place.placeId ? { logoUrl: `/api/restaurants/logo?place=${encodeURIComponent(place.placeId)}` } : {}),
         ...(place.photo && place.placeId
           ? { photoUrl: `/api/restaurants/photo?place=${encodeURIComponent(place.placeId)}`, photoCredit: place.photo.credit }
           : {}),

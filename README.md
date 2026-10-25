@@ -53,6 +53,7 @@ second screen to scan real codes.
 | `lib/restaurant-search.ts` | Adapter over `findRestaurants`: one search per plan, opening hours checked per slot, seeded fallback labelled as such |
 | `lib/restaurants/find.ts` | Live search: Places + Gemini estimates, cached (Places 24 h; estimates 72 h grounded, 12 h otherwise, per headcount band) |
 | `app/api/restaurants/photo/route.ts` | Restaurant photos: redirects to the Places photo (key stays server-side, only cached places, each photo fetched at most twice a day) |
+| `app/api/restaurants/logo/route.ts` | Restaurant logos: the site's own large icon, else Google's favicon service (≥64 px), cached a week; tiles fall back to the photo, then the letter |
 | `lib/rate-limit.ts` | Per-IP in-memory rate limits for `/api/restaurants` and `/api/chat` |
 | `lib/chat-history.ts` | Chat history the browser can't forge: assistant turns must carry the server's signature |
 | `lib/server/food-chat.ts` | Chat turn: Gemini picks tools and narrates, the planner does the maths |

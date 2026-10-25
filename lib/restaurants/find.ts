@@ -143,8 +143,7 @@ export async function placePhotoUrl(placeId: string): Promise<string | null> {
   const cacheKey = `photo:v1:${placeId}`;
   const hit = await cacheGet<{ uri: string | null }>(cacheKey);
   if (hit) return hit.uri;
-  const places = await cacheGet<PlaceResult[]>(placesKey(DEFAULT_VENUE, DEFAULT_RADIUS));
-  const photo = places?.find((p) => p.placeId === placeId)?.photo;
+  const photo = (await cachedPlace(placeId))?.photo;
   if (!photo) return null;
   return once(photoInflight, placeId, async () => {
     let uri: string | null = null;
@@ -156,4 +155,11 @@ export async function placePhotoUrl(placeId: string): Promise<string | null> {
     await cacheSet(cacheKey, { uri }, uri ? PHOTO_TTL : NO_PHOTO_TTL);
     return uri;
   });
+}
+
+/** A place from the cached search around the OxHack venue, or undefined. Never runs a search:
+    routes that act on a place id use this as their allow-list. */
+export async function cachedPlace(placeId: string): Promise<PlaceResult | undefined> {
+  const places = await cacheGet<PlaceResult[]>(placesKey(DEFAULT_VENUE, DEFAULT_RADIUS));
+  return places?.find((p) => p.placeId === placeId);
 }
